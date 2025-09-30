@@ -1,5 +1,6 @@
 package com.divan.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
@@ -25,6 +26,7 @@ public class Diaria {
     @NotNull(message = "Tipo de apartamento é obrigatório")
     @ManyToOne
     @JoinColumn(name = "tipo_apartamento_id", nullable = false)
+    @JsonIgnoreProperties({"diarias", "apartamentos"})
     private TipoApartamento tipoApartamento;
     
     @Min(value = 1, message = "Quantidade deve ser no mínimo 1")
@@ -36,5 +38,6 @@ public class Diaria {
     private BigDecimal valor;
     
     @OneToMany(mappedBy = "diaria", cascade = CascadeType.ALL)
+    @JsonIgnoreProperties("diaria")
     private List<Reserva> reservas;
 }

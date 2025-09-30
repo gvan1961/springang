@@ -1,5 +1,6 @@
 package com.divan.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
@@ -28,9 +29,11 @@ public class TipoApartamento {
     private String descricao;
     
     @OneToMany(mappedBy = "tipoApartamento", cascade = CascadeType.ALL)
+    @JsonIgnoreProperties("tipoApartamento")
     private List<Apartamento> apartamentos;
     
     @OneToMany(mappedBy = "tipoApartamento", cascade = CascadeType.ALL)
+    @JsonIgnoreProperties("tipoApartamento")
     private List<Diaria> diarias;
     
     public enum TipoEnum {
