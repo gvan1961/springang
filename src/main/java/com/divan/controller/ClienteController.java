@@ -1,5 +1,6 @@
 package com.divan.controller;
 
+import com.divan.dto.ClienteRequestDTO;
 import com.divan.entity.Cliente;
 import com.divan.service.ClienteService;
 import jakarta.validation.Valid;
@@ -20,9 +21,20 @@ public class ClienteController {
     private ClienteService clienteService;
     
     @PostMapping
-    public ResponseEntity<Cliente> criar(@Valid @RequestBody Cliente cliente) {
+    public ResponseEntity<Cliente> criar(@Valid @RequestBody ClienteRequestDTO dto) {
         try {
-            Cliente clienteSalvo = clienteService.salvar(cliente);
+            // Converter DTO para Entity
+            Cliente cliente = new Cliente();
+            cliente.setNome(dto.getNome());
+            cliente.setCpf(dto.getCpf());
+            cliente.setCelular(dto.getCelular());
+            cliente.setEndereco(dto.getEndereco());
+            cliente.setCep(dto.getCep());
+            cliente.setCidade(dto.getCidade());
+            cliente.setEstado(dto.getEstado());
+            cliente.setDataNascimento(dto.getDataNascimento());
+            
+            Cliente clienteSalvo = clienteService.salvar(cliente, dto.getEmpresaId());
             return ResponseEntity.status(HttpStatus.CREATED).body(clienteSalvo);
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
@@ -60,9 +72,20 @@ public class ClienteController {
     }
     
     @PutMapping("/{id}")
-    public ResponseEntity<Cliente> atualizar(@PathVariable Long id, @Valid @RequestBody Cliente cliente) {
+    public ResponseEntity<Cliente> atualizar(@PathVariable Long id, @Valid @RequestBody ClienteRequestDTO dto) {
         try {
-            Cliente clienteAtualizado = clienteService.atualizar(id, cliente);
+            // Converter DTO para Entity
+            Cliente cliente = new Cliente();
+            cliente.setNome(dto.getNome());
+            cliente.setCpf(dto.getCpf());
+            cliente.setCelular(dto.getCelular());
+            cliente.setEndereco(dto.getEndereco());
+            cliente.setCep(dto.getCep());
+            cliente.setCidade(dto.getCidade());
+            cliente.setEstado(dto.getEstado());
+            cliente.setDataNascimento(dto.getDataNascimento());
+            
+            Cliente clienteAtualizado = clienteService.atualizar(id, cliente, dto.getEmpresaId());
             return ResponseEntity.ok(clienteAtualizado);
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();

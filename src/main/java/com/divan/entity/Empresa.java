@@ -1,5 +1,6 @@
 package com.divan.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -37,6 +38,8 @@ public class Empresa {
     @Column(nullable = false)
     private String celular;
     
+    // IMPORTANTE: JsonIgnoreProperties evita o loop infinito
     @OneToMany(mappedBy = "empresa", cascade = CascadeType.ALL)
+    @JsonIgnoreProperties("empresa")
     private List<Cliente> clientes;
 }
