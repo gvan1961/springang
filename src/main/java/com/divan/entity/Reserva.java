@@ -1,5 +1,6 @@
 package com.divan.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
@@ -26,11 +27,13 @@ public class Reserva {
     @NotNull(message = "Apartamento é obrigatório")
     @ManyToOne
     @JoinColumn(name = "apartamento_id", nullable = false)
+    @JsonIgnoreProperties({"reservas", "tipoApartamento"})
     private Apartamento apartamento;
     
     @NotNull(message = "Cliente é obrigatório")
     @ManyToOne
     @JoinColumn(name = "cliente_id", nullable = false)
+    @JsonIgnoreProperties({"reservas", "empresa"})
     private Cliente cliente;
     
     @Min(value = 1, message = "Quantidade de hóspedes deve ser no mínimo 1")
@@ -40,6 +43,7 @@ public class Reserva {
     @NotNull(message = "Diária é obrigatória")
     @ManyToOne
     @JoinColumn(name = "diaria_id", nullable = false)
+    @JsonIgnoreProperties({"reservas", "tipoApartamento"})
     private Diaria diaria;
     
     @NotNull(message = "Data de check-in é obrigatória")
@@ -82,12 +86,15 @@ public class Reserva {
     private StatusReservaEnum status = StatusReservaEnum.ATIVA;
     
     @OneToMany(mappedBy = "reserva", cascade = CascadeType.ALL)
+    @JsonIgnoreProperties("reserva")
     private List<ExtratoReserva> extratos;
     
     @OneToMany(mappedBy = "reserva", cascade = CascadeType.ALL)
+    @JsonIgnoreProperties("reserva")
     private List<HistoricoHospede> historicos;
     
     @OneToMany(mappedBy = "reserva", cascade = CascadeType.ALL)
+    @JsonIgnoreProperties("reserva")
     private List<NotaVenda> notasVenda;
     
     public enum StatusReservaEnum {

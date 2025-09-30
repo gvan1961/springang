@@ -1,5 +1,6 @@
 package com.divan.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -23,13 +24,15 @@ public class HistoricoHospede {
     @NotNull(message = "Reserva é obrigatória")
     @ManyToOne
     @JoinColumn(name = "reserva_id", nullable = false)
+    @JsonIgnoreProperties({"historicos", "extratos", "notasVenda"})
     private Reserva reserva;
     
     @NotNull(message = "Data/hora é obrigatória")
     @Column(nullable = false)
     private LocalDateTime dataHora;
     
-    @Min(value = 1, message = "Quantidade anterior deve ser no mínimo 1")
+    // CORREÇÃO: Permitir 0 para check-in inicial
+    @Min(value = 0, message = "Quantidade anterior não pode ser negativa")
     @Column(nullable = false)
     private Integer quantidadeAnterior;
     

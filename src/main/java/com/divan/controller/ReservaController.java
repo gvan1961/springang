@@ -1,6 +1,11 @@
 package com.divan.controller;
 
+import com.divan.dto.ReservaRequestDTO;
+import com.divan.entity.Apartamento;
+import com.divan.entity.Cliente;
 import com.divan.entity.Reserva;
+import com.divan.service.ApartamentoService;
+import com.divan.service.ClienteService;
 import com.divan.service.ReservaService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,13 +26,55 @@ public class ReservaController {
     @Autowired
     private ReservaService reservaService;
     
+    @Autowired
+    private ApartamentoService apartamentoService;
+    
+    @Autowired
+    private ClienteService clienteService;
+    
     @PostMapping
-    public ResponseEntity<Reserva> criarReserva(@Valid @RequestBody Reserva reserva) {
+    public ResponseEntity<?> criarReserva(@Valid @RequestBody ReservaRequestDTO dto) {
         try {
+            // Validar datas
+            if (dto.getDataCheckout().isBefore(dto.getDataCheckin()) || 
+                dto.getDataCheckout().isEqual(dto.getDataCheckin())) {
+                return ResponseEntity.badRequest()
+                    .body("Data de check-out deve ser posterior ao check-in");
+            }
+            
+            // Buscar apartamento
+            Optional<Apartamento> apartamentoOpt = apartamentoService.buscarPorId(dto.getApartamentoId());
+            if (apartamentoOpt.isEmpty()) {
+                return ResponseEntity.badRequest().body("Apartamento não encontrado");
+            }
+            
+            // Buscar cliente
+            Optional<Cliente> clienteOpt = clienteService.buscarPorId(dto.getClienteId());
+            if (clienteOpt.isEmpty()) {
+                return ResponseEntity.badRequest().body("Cliente não encontrado");
+            }
+            
+            // Validar capacidade do apartamento
+            Apartamento apartamento = apartamentoOpt.get();
+            if (dto.getQuantidadeHospede() > apartamento.getCapacidade()) {
+                return ResponseEntity.badRequest()
+                    .body("Quantidade de hóspedes (" + dto.getQuantidadeHospede() + 
+                          ") excede a capacidade do apartamento (" + apartamento.getCapacidade() + ")");
+            }
+            
+            // Criar reserva
+            Reserva reserva = new Reserva();
+            reserva.setApartamento(apartamento);
+            reserva.setCliente(clienteOpt.get());
+            reserva.setQuantidadeHospede(dto.getQuantidadeHospede());
+            reserva.setDataCheckin(dto.getDataCheckin());
+            reserva.setDataCheckout(dto.getDataCheckout());
+            
             Reserva reservaCriada = reservaService.criarReserva(reserva);
             return ResponseEntity.status(HttpStatus.CREATED).body(reservaCriada);
+            
         } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
     
@@ -72,7 +119,7 @@ public class ReservaController {
     }
     
     @PatchMapping("/{id}/alterar-hospedes")
-    public ResponseEntity<Reserva> alterarQuantidadeHospedes(
+    public ResponseEntity<?> alterarQuantidadeHospedes(
             @PathVariable Long id, 
             @RequestParam Integer quantidade,
             @RequestParam(required = false) String motivo) {
@@ -80,27 +127,27 @@ public class ReservaController {
             Reserva reserva = reservaService.alterarQuantidadeHospedes(id, quantidade, motivo);
             return ResponseEntity.ok(reserva);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
     
     @PatchMapping("/{id}/finalizar")
-    public ResponseEntity<Reserva> finalizarReserva(@PathVariable Long id) {
+    public ResponseEntity<?> finalizarReserva(@PathVariable Long id) {
         try {
             Reserva reserva = reservaService.finalizarReserva(id);
             return ResponseEntity.ok(reserva);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
     
     @PatchMapping("/{id}/cancelar")
-    public ResponseEntity<Reserva> cancelarReserva(@PathVariable Long id, @RequestParam String motivo) {
+    public ResponseEntity<?> cancelarReserva(@PathVariable Long id, @RequestParam String motivo) {
         try {
             Reserva reserva = reservaService.cancelarReserva(id, motivo);
             return ResponseEntity.ok(reserva);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 }

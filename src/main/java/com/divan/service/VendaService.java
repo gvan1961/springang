@@ -22,7 +22,7 @@ public class VendaService {
     private ItemVendaRepository itemVendaRepository;
     
     @Autowired
-    private ProdutoService produtoService;
+    private ProdutoRepository produtoRepository;
     
     @Autowired
     private ExtratoReservaRepository extratoRepository;
@@ -30,16 +30,48 @@ public class VendaService {
     @Autowired
     private ReservaRepository reservaRepository;
     
-    public NotaVenda processarVenda(NotaVenda notaVenda, List<ItemVenda> itens) {
+    public NotaVenda adicionarVendaParaReserva(Long reservaId, List<ItemVenda> itens) {
+        // Buscar reserva
+        Optional<Reserva> reservaOpt = reservaRepository.findById(reservaId);
+        if (reservaOpt.isEmpty()) {
+            throw new RuntimeException("Reserva não encontrada");
+        }
+        
+        Reserva reserva = reservaOpt.get();
+        
+        if (reserva.getStatus() != Reserva.StatusReservaEnum.ATIVA) {
+            throw new RuntimeException("Não é possível adicionar itens a uma reserva não ativa");
+        }
+        
         BigDecimal total = BigDecimal.ZERO;
         
-        // Salvar nota primeiro
+        // Criar nota de venda - CORREÇÃO: INICIALIZAR TOTAL COM ZERO
+        NotaVenda notaVenda = new NotaVenda();
         notaVenda.setDataHoraVenda(LocalDateTime.now());
+        notaVenda.setTipoVenda(NotaVenda.TipoVendaEnum.APARTAMENTO);
+        notaVenda.setReserva(reserva);
+        notaVenda.setTotal(BigDecimal.ZERO); // ← CORREÇÃO AQUI!
+        
         NotaVenda notaSalva = notaVendaRepository.save(notaVenda);
         
         // Processar itens
         for (ItemVenda item : itens) {
+            // Buscar produto
+            Optional<Produto> produtoOpt = produtoRepository.findById(item.getProduto().getId());
+            if (produtoOpt.isEmpty()) {
+                throw new RuntimeException("Produto não encontrado: " + item.getProduto().getId());
+            }
+            
+            Produto produto = produtoOpt.get();
+            
+            // Verificar estoque
+            if (produto.getQuantidade() < item.getQuantidade()) {
+                throw new RuntimeException("Estoque insuficiente para o produto: " + produto.getNomeProduto());
+            }
+            
             item.setNotaVenda(notaSalva);
+            item.setProduto(produto);
+            item.setValorUnitario(produto.getValorVenda());
             
             // Calcular total do item
             BigDecimal totalItem = item.getValorUnitario()
@@ -47,7 +79,8 @@ public class VendaService {
             item.setTotalItem(totalItem);
             
             // Baixar estoque
-            produtoService.baixarEstoque(item.getProduto().getId(), item.getQuantidade());
+            produto.setQuantidade(produto.getQuantidade() - item.getQuantidade());
+            produtoRepository.save(produto);
             
             // Salvar item
             itemVendaRepository.save(item);
@@ -59,14 +92,63 @@ public class VendaService {
         notaSalva.setTotal(total);
         notaSalva = notaVendaRepository.save(notaSalva);
         
-        // Se for venda para apartamento, criar extrato
-        if (notaVenda.getTipoVenda() == NotaVenda.TipoVendaEnum.APARTAMENTO 
-            && notaVenda.getReserva() != null) {
-            criarExtratoVenda(notaSalva, itens);
-            atualizarTotalProdutoReserva(notaVenda.getReserva().getId(), total);
-        }
+        // Criar extratos
+        criarExtratoVenda(notaSalva, itens);
+        
+        // Atualizar totais da reserva
+        atualizarTotalProdutoReserva(reservaId, total);
         
         return notaSalva;
+    }
+    
+    public NotaVenda processarVendaVista(List<ItemVenda> itens) {
+        BigDecimal total = BigDecimal.ZERO;
+        
+        // Criar nota de venda à vista - CORREÇÃO: INICIALIZAR TOTAL COM ZERO
+        NotaVenda notaVenda = new NotaVenda();
+        notaVenda.setDataHoraVenda(LocalDateTime.now());
+        notaVenda.setTipoVenda(NotaVenda.TipoVendaEnum.VISTA);
+        notaVenda.setTotal(BigDecimal.ZERO); // ← CORREÇÃO AQUI!
+        
+        NotaVenda notaSalva = notaVendaRepository.save(notaVenda);
+        
+        // Processar itens
+        for (ItemVenda item : itens) {
+            // Buscar produto
+            Optional<Produto> produtoOpt = produtoRepository.findById(item.getProduto().getId());
+            if (produtoOpt.isEmpty()) {
+                throw new RuntimeException("Produto não encontrado: " + item.getProduto().getId());
+            }
+            
+            Produto produto = produtoOpt.get();
+            
+            // Verificar estoque
+            if (produto.getQuantidade() < item.getQuantidade()) {
+                throw new RuntimeException("Estoque insuficiente para o produto: " + produto.getNomeProduto());
+            }
+            
+            item.setNotaVenda(notaSalva);
+            item.setProduto(produto);
+            item.setValorUnitario(produto.getValorVenda());
+            
+            // Calcular total do item
+            BigDecimal totalItem = item.getValorUnitario()
+                .multiply(BigDecimal.valueOf(item.getQuantidade()));
+            item.setTotalItem(totalItem);
+            
+            // Baixar estoque
+            produto.setQuantidade(produto.getQuantidade() - item.getQuantidade());
+            produtoRepository.save(produto);
+            
+            // Salvar item
+            itemVendaRepository.save(item);
+            
+            total = total.add(totalItem);
+        }
+        
+        // Atualizar total da nota
+        notaSalva.setTotal(total);
+        return notaVendaRepository.save(notaSalva);
     }
     
     private void criarExtratoVenda(NotaVenda nota, List<ItemVenda> itens) {
@@ -97,6 +179,12 @@ public class VendaService {
             
             reservaRepository.save(reserva);
         }
+    }
+    
+    @Transactional(readOnly = true)
+    public List<NotaVenda> buscarVendasDaReserva(Long reservaId) {
+        Optional<Reserva> reserva = reservaRepository.findById(reservaId);
+        return reserva.map(notaVendaRepository::findByReserva).orElse(List.of());
     }
     
     @Transactional(readOnly = true)

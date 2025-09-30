@@ -1,5 +1,6 @@
 package com.divan.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
@@ -19,7 +20,7 @@ public class Categoria {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    @NotBlank(message = "Nome da categoria é obrigatório.")
+    @NotBlank(message = "Nome da categoria é obrigatório")
     @Column(nullable = false, length = 50)
     private String nome;
     
@@ -27,5 +28,6 @@ public class Categoria {
     private String descricao;
     
     @OneToMany(mappedBy = "categoria", cascade = CascadeType.ALL)
+    @JsonIgnoreProperties("categoria")
     private List<Produto> produtos;
 }

@@ -1,5 +1,6 @@
 package com.divan.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
@@ -24,11 +25,13 @@ public class ItemVenda {
     @NotNull(message = "Nota de venda é obrigatória")
     @ManyToOne
     @JoinColumn(name = "nota_venda_id", nullable = false)
+    @JsonIgnoreProperties("itens")
     private NotaVenda notaVenda;
     
     @NotNull(message = "Produto é obrigatório")
     @ManyToOne
     @JoinColumn(name = "produto_id", nullable = false)
+    @JsonIgnoreProperties("itensVenda")
     private Produto produto;
     
     @Min(value = 1, message = "Quantidade deve ser no mínimo 1")

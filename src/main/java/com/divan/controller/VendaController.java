@@ -1,17 +1,19 @@
 package com.divan.controller;
 
+import com.divan.dto.ItemVendaRequestDTO;
+import com.divan.dto.VendaReservaRequestDTO;
 import com.divan.entity.ItemVenda;
 import com.divan.entity.NotaVenda;
+import com.divan.entity.Produto;
 import com.divan.service.VendaService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/vendas")
@@ -21,42 +23,30 @@ public class VendaController {
     @Autowired
     private VendaService vendaService;
     
-    @PostMapping
-    public ResponseEntity<NotaVenda> processarVenda(@RequestBody Map<String, Object> vendaData) {
+    @GetMapping("/teste")
+    public ResponseEntity<String> teste() {
+        return ResponseEntity.ok("VendaController funcionando!");
+    }
+    
+    @PostMapping("/reserva")
+    public ResponseEntity<?> adicionarVendaParaReserva(@Valid @RequestBody VendaReservaRequestDTO dto) {
         try {
-            NotaVenda notaVenda = new NotaVenda();
-            // Mapear dados da venda
-            // ... implementar mapeamento dos dados
+            List<ItemVenda> itens = new ArrayList<>();
             
-            @SuppressWarnings("unchecked")
-            List<ItemVenda> itens = (List<ItemVenda>) vendaData.get("itens");
+            for (ItemVendaRequestDTO itemDto : dto.getItens()) {
+                ItemVenda item = new ItemVenda();
+                Produto produto = new Produto();
+                produto.setId(itemDto.getProdutoId());
+                item.setProduto(produto);
+                item.setQuantidade(itemDto.getQuantidade());
+                itens.add(item);
+            }
             
-            NotaVenda vendaProcessada = vendaService.processarVenda(notaVenda, itens);
+            NotaVenda vendaProcessada = vendaService.adicionarVendaParaReserva(dto.getReservaId(), itens);
             return ResponseEntity.status(HttpStatus.CREATED).body(vendaProcessada);
+            
         } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
-    }
-    
-    @GetMapping("/do-dia")
-    public ResponseEntity<List<NotaVenda>> buscarVendasDoDia(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime data) {
-        List<NotaVenda> vendas = vendaService.buscarVendasDoDia(data);
-        return ResponseEntity.ok(vendas);
-    }
-    
-    @GetMapping("/periodo")
-    public ResponseEntity<List<NotaVenda>> buscarVendasPorPeriodo(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime inicio,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fim) {
-        List<NotaVenda> vendas = vendaService.buscarVendasPorPeriodo(inicio, fim);
-        return ResponseEntity.ok(vendas);
-    }
-    
-    @GetMapping("/vista-do-dia")
-    public ResponseEntity<List<NotaVenda>> buscarVendasVistaDoDia(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime data) {
-        List<NotaVenda> vendas = vendaService.buscarVendasVistaDoDia(data);
-        return ResponseEntity.ok(vendas);
     }
 }

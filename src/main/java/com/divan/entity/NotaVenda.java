@@ -1,5 +1,6 @@
 package com.divan.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
@@ -32,13 +33,16 @@ public class NotaVenda {
     
     @ManyToOne
     @JoinColumn(name = "reserva_id")
+    @JsonIgnoreProperties({"notasVenda", "extratos", "historicos"})
     private Reserva reserva;
     
-    @DecimalMin(value = "0.01", message = "Total deve ser maior que zero")
+    // CORREÇÃO: Mudar de 0.01 para 0.0 para permitir zero temporariamente
+    @DecimalMin(value = "0.0", message = "Total não pode ser negativo")
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal total;
     
     @OneToMany(mappedBy = "notaVenda", cascade = CascadeType.ALL)
+    @JsonIgnoreProperties("notaVenda")
     private List<ItemVenda> itens;
     
     public enum TipoVendaEnum {
