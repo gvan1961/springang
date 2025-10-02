@@ -2,7 +2,6 @@ package com.divan.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -40,11 +39,13 @@ public class ExtratoReserva {
     @Min(value = 0, message = "Quantidade não pode ser negativa")
     private Integer quantidade;
     
-    @DecimalMin(value = "0.0", message = "Valor unitário não pode ser negativo")
+    // CORREÇÃO: Remover validação @DecimalMin para permitir valores negativos
+    // Pagamentos precisam ser negativos para diminuir o saldo
     @Column(precision = 10, scale = 2)
     private BigDecimal valorUnitario;
     
-    @DecimalMin(value = "0.0", message = "Total do lançamento não pode ser negativo")
+    // CORREÇÃO: Remover validação @DecimalMin para permitir valores negativos
+    // Pagamentos e estornos são negativos
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal totalLancamento;
     

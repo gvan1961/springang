@@ -1,5 +1,6 @@
 package com.divan.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
@@ -24,6 +25,7 @@ public class Pagamento {
     @NotNull(message = "Reserva é obrigatória")
     @ManyToOne
     @JoinColumn(name = "reserva_id", nullable = false)
+    @JsonIgnoreProperties({"extratos", "historicos", "notasVenda", "apartamento", "cliente", "diaria"})
     private Reserva reserva;
     
     @DecimalMin(value = "0.01", message = "Valor deve ser maior que zero")
