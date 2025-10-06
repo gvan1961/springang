@@ -25,13 +25,4 @@ public class AuthController {
             return ResponseEntity.badRequest().body("Credenciais inválidas: " + e.getMessage());
         }
     }
-    
-    @GetMapping("/me")
-    public ResponseEntity<?> getUsuarioAutenticado() {
-        try {
-            return ResponseEntity.ok(authService.getUsuarioAutenticado());
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
-    }
 }
