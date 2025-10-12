@@ -71,7 +71,7 @@ public class SecurityConfig {
                 
                 // APARTAMENTOS
                 .requestMatchers(HttpMethod.GET, "/api/apartamentos/**").hasAnyAuthority("APARTAMENTO_READ", "ROLE_ADMIN")
-                .requestMatchers(HttpMethod.POST, "/api/apartamentos").hasAnyAuthority("APARTAMENTO_CREATE", "ROLE_ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/apartamentos").hasAnyAuthority("APARTAMENTO_CREATE", "ROLE_ADMIN")                           
                 .requestMatchers(HttpMethod.PUT, "/api/apartamentos/**").hasAnyAuthority("APARTAMENTO_UPDATE", "ROLE_ADMIN")
                 .requestMatchers(HttpMethod.PATCH, "/api/apartamentos/**").hasAnyAuthority("APARTAMENTO_UPDATE", "ROLE_ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/apartamentos/**").hasAnyAuthority("APARTAMENTO_DELETE", "ROLE_ADMIN")
