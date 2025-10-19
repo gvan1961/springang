@@ -37,6 +37,6 @@ public class TipoApartamento {
     private List<Diaria> diarias;
     
     public enum TipoEnum {
-        A, B, C
+        A, B, C, D
     }
 }

@@ -58,11 +58,10 @@ public class ExtratoService {
             .map(this::converterHistorico)
             .collect(Collectors.toList()));
         
-        // Lançamentos (Extratos + Pagamentos)
-        List<LancamentoDTO> lancamentos = new ArrayList<>();
-        
-        // Adicionar extratos
+        // ✅ BUSCAR APENAS OS EXTRATOS (que já incluem pagamentos e produtos)
         List<ExtratoReserva> extratos = extratoReservaRepository.findByReservaOrderByDataHoraLancamento(reserva);
+        
+        List<LancamentoDTO> lancamentos = new ArrayList<>();
         BigDecimal saldo = BigDecimal.ZERO;
         
         for (ExtratoReserva e : extratos) {
@@ -83,27 +82,8 @@ public class ExtratoService {
             lancamentos.add(lanc);
         }
         
-        // Adicionar pagamentos
-        List<Pagamento> pagamentos = pagamentoRepository.findByReserva(reserva);
-        for (Pagamento p : pagamentos) {
-            LancamentoDTO lanc = new LancamentoDTO();
-            lanc.setId(p.getId());
-            lanc.setDataHora(p.getDataHoraPagamento());
-            lanc.setTipo("PAGAMENTO");
-            lanc.setDescricao("Pagamento - " + p.getFormaPagamento().name());
-            lanc.setQuantidade(null);
-            lanc.setValorUnitario(p.getValor());
-            lanc.setTotalLancamento(p.getValor().negate()); // Negativo porque diminui saldo
-            
-            // Calcular saldo acumulado
-            saldo = saldo.subtract(p.getValor());
-            lanc.setSaldoAcumulado(saldo);
-            
-            lancamentos.add(lanc);
-        }
-        
-        // Ordenar por data/hora
-        lancamentos.sort((a, b) -> a.getDataHora().compareTo(b.getDataHora()));
+        // ✅ REMOVER A PARTE QUE BUSCAVA PAGAMENTOS SEPARADAMENTE
+        // (Pagamentos já estão nos extratos)
         
         extrato.setLancamentos(lancamentos);
         

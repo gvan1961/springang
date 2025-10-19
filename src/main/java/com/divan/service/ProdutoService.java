@@ -30,6 +30,10 @@ public class ProdutoService {
         return produtoRepository.save(produto);
     }
     
+    public List<Produto> listarDisponiveis() {
+        return produtoRepository.findProdutosDisponiveis();
+    }
+    
     public Produto atualizarEstoque(Long id, Integer novaQuantidade) {
         Optional<Produto> produtoOpt = produtoRepository.findById(id);
         if (produtoOpt.isEmpty()) {

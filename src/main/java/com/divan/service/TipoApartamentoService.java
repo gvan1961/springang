@@ -1,5 +1,6 @@
 package com.divan.service;
 
+import com.divan.dto.TipoApartamentoResponseDTO;
 import com.divan.entity.TipoApartamento;
 import com.divan.repository.TipoApartamentoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -71,5 +72,21 @@ public class TipoApartamentoService {
     @Transactional(readOnly = true)
     public List<TipoApartamento> listarTodos() {
         return tipoApartamentoRepository.findAll();
+    }
+    
+    private TipoApartamentoResponseDTO converterParaDTO(TipoApartamento tipo) {
+        TipoApartamentoResponseDTO dto = new TipoApartamentoResponseDTO();
+        dto.setId(tipo.getId());
+        dto.setTipo(tipo.getTipo());
+        dto.setDescricao(tipo.getDescricao());
+        
+        // Opcional: contar apartamentos deste tipo
+        if (tipo.getApartamentos() != null) {
+            dto.setTotalApartamentos(tipo.getApartamentos().size());
+        } else {
+            dto.setTotalApartamentos(0);
+        }
+        
+        return dto;
     }
 }

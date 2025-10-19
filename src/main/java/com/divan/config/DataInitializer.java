@@ -9,12 +9,11 @@ import com.divan.repository.UsuarioRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
-//import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 @Component
 public class DataInitializer implements CommandLineRunner {
@@ -33,13 +32,8 @@ public class DataInitializer implements CommandLineRunner {
     
     @Override
     public void run(String... args) throws Exception {
-        // Criar permissões se não existirem
         criarPermissoes();
-        
-        // Criar perfis se não existirem
         criarPerfis();
-        
-        // Criar usuário admin se não existir
         criarUsuarioAdmin();
     }
     
@@ -112,83 +106,90 @@ public class DataInitializer implements CommandLineRunner {
     }
     
     private void criarPerfis() {
-        // Perfil ADMIN - Todas as permissões
+        // ========== PERFIL ADMIN ==========
         if (!perfilRepository.existsByNome("ADMIN")) {
             Perfil admin = new Perfil();
             admin.setNome("ADMIN");
             admin.setDescricao("Administrador do sistema com todas as permissões");
-            admin.setPermissoes(permissaoRepository.findAll());
+            
+            // ✅ Converter List para HashSet
+            admin.setPermissoes(new HashSet<>(permissaoRepository.findAll()));
+            
             perfilRepository.save(admin);
             System.out.println("✓ Perfil ADMIN criado");
         }
         
-        // Perfil GERENTE
+        // ========== PERFIL GERENTE ==========
         if (!perfilRepository.existsByNome("GERENTE")) {
             Perfil gerente = new Perfil();
             gerente.setNome("GERENTE");
             gerente.setDescricao("Gerente com acesso a relatórios e visualização completa");
             
-            List<Permissao> permissoesGerente = new ArrayList<>();
+            Set<Permissao> permissoesGerente = new HashSet<>();
             permissoesGerente.addAll(permissaoRepository.findByCategoria("RELATORIOS"));
             permissoesGerente.addAll(permissaoRepository.findByCategoria("EXTRATOS"));
-            permissoesGerente.addAll(Arrays.asList(
-                permissaoRepository.findByNome("APARTAMENTO_READ").orElse(null),
-                permissaoRepository.findByNome("CLIENTE_READ").orElse(null),
-                permissaoRepository.findByNome("RESERVA_READ").orElse(null),
-                permissaoRepository.findByNome("PRODUTO_READ").orElse(null),
-                permissaoRepository.findByNome("VENDA_READ").orElse(null),
-                permissaoRepository.findByNome("PAGAMENTO_READ").orElse(null)
-            ));
-            permissoesGerente.removeIf(p -> p == null);
+            
+            // Adicionar permissões específicas
+            adicionarPermissao(permissoesGerente, "APARTAMENTO_READ");
+            adicionarPermissao(permissoesGerente, "CLIENTE_READ");
+            adicionarPermissao(permissoesGerente, "RESERVA_READ");
+            adicionarPermissao(permissoesGerente, "PRODUTO_READ");
+            adicionarPermissao(permissoesGerente, "VENDA_READ");
+            adicionarPermissao(permissoesGerente, "PAGAMENTO_READ");
             
             gerente.setPermissoes(permissoesGerente);
             perfilRepository.save(gerente);
             System.out.println("✓ Perfil GERENTE criado");
         }
         
-        // Perfil RECEPCIONISTA
+        // ========== PERFIL RECEPCIONISTA ==========
         if (!perfilRepository.existsByNome("RECEPCIONISTA")) {
             Perfil recepcionista = new Perfil();
             recepcionista.setNome("RECEPCIONISTA");
             recepcionista.setDescricao("Recepcionista com permissões para reservas e clientes");
             
-            List<Permissao> permissoesRecepcionista = Arrays.asList(
-                permissaoRepository.findByNome("CLIENTE_CREATE").orElse(null),
-                permissaoRepository.findByNome("CLIENTE_READ").orElse(null),
-                permissaoRepository.findByNome("CLIENTE_UPDATE").orElse(null),
-                permissaoRepository.findByNome("RESERVA_CREATE").orElse(null),
-                permissaoRepository.findByNome("RESERVA_READ").orElse(null),
-                permissaoRepository.findByNome("RESERVA_UPDATE").orElse(null),
-                permissaoRepository.findByNome("APARTAMENTO_READ").orElse(null),
-                permissaoRepository.findByNome("PAGAMENTO_CREATE").orElse(null),
-                permissaoRepository.findByNome("PAGAMENTO_READ").orElse(null),
-                permissaoRepository.findByNome("EXTRATO_READ").orElse(null)
-            );
-            permissoesRecepcionista.removeIf(p -> p == null);
+            Set<Permissao> permissoesRecepcionista = new HashSet<>();
+            
+            adicionarPermissao(permissoesRecepcionista, "CLIENTE_CREATE");
+            adicionarPermissao(permissoesRecepcionista, "CLIENTE_READ");
+            adicionarPermissao(permissoesRecepcionista, "CLIENTE_UPDATE");
+            adicionarPermissao(permissoesRecepcionista, "RESERVA_CREATE");
+            adicionarPermissao(permissoesRecepcionista, "RESERVA_READ");
+            adicionarPermissao(permissoesRecepcionista, "RESERVA_UPDATE");
+            adicionarPermissao(permissoesRecepcionista, "APARTAMENTO_READ");
+            adicionarPermissao(permissoesRecepcionista, "PAGAMENTO_CREATE");
+            adicionarPermissao(permissoesRecepcionista, "PAGAMENTO_READ");
+            adicionarPermissao(permissoesRecepcionista, "EXTRATO_READ");
             
             recepcionista.setPermissoes(permissoesRecepcionista);
             perfilRepository.save(recepcionista);
             System.out.println("✓ Perfil RECEPCIONISTA criado");
         }
         
-        // Perfil VENDEDOR
+        // ========== PERFIL VENDEDOR ==========
         if (!perfilRepository.existsByNome("VENDEDOR")) {
             Perfil vendedor = new Perfil();
             vendedor.setNome("VENDEDOR");
             vendedor.setDescricao("Vendedor com permissões para produtos e vendas");
             
-            List<Permissao> permissoesVendedor = Arrays.asList(
-                permissaoRepository.findByNome("PRODUTO_READ").orElse(null),
-                permissaoRepository.findByNome("VENDA_CREATE").orElse(null),
-                permissaoRepository.findByNome("VENDA_READ").orElse(null),
-                permissaoRepository.findByNome("RESERVA_READ").orElse(null)
-            );
-            permissoesVendedor.removeIf(p -> p == null);
+            Set<Permissao> permissoesVendedor = new HashSet<>();
+            
+            adicionarPermissao(permissoesVendedor, "PRODUTO_READ");
+            adicionarPermissao(permissoesVendedor, "VENDA_CREATE");
+            adicionarPermissao(permissoesVendedor, "VENDA_READ");
+            adicionarPermissao(permissoesVendedor, "RESERVA_READ");
             
             vendedor.setPermissoes(permissoesVendedor);
             perfilRepository.save(vendedor);
             System.out.println("✓ Perfil VENDEDOR criado");
         }
+    }
+    
+    /**
+     * Método auxiliar para adicionar permissão ao Set
+     */
+    private void adicionarPermissao(Set<Permissao> set, String nomePermissao) {
+        permissaoRepository.findByNome(nomePermissao).ifPresent(set::add);
     }
     
     private void criarUsuarioAdmin() {
@@ -202,7 +203,10 @@ public class DataInitializer implements CommandLineRunner {
             
             Perfil perfilAdmin = perfilRepository.findByNome("ADMIN").orElse(null);
             if (perfilAdmin != null) {
-                admin.setPerfis(Arrays.asList(perfilAdmin));
+                // ✅ Converter List para HashSet se Usuario.perfis for Set
+                // Se for List, manter Arrays.asList            
+                admin.setPerfis(new HashSet<>(Arrays.asList(perfilAdmin)));
+
             }
             
             usuarioRepository.save(admin);

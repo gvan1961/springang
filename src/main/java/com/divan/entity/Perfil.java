@@ -8,7 +8,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "perfis")
@@ -28,14 +30,15 @@ public class Perfil {
     @Column(length = 200)
     private String descricao;
     
-    @ManyToMany(fetch = FetchType.EAGER)
+    @ManyToMany(fetch = FetchType.EAGER)    
     @JoinTable(
         name = "perfil_permissoes",
         joinColumns = @JoinColumn(name = "perfil_id"),
         inverseJoinColumns = @JoinColumn(name = "permissao_id")
     )
     @JsonIgnoreProperties("perfis")
-    private List<Permissao> permissoes = new ArrayList<>();
+   // private List<Permissao> permissoes = new ArrayList<>();
+    private Set<Permissao> permissoes = new HashSet<>();
     
     @ManyToMany(mappedBy = "perfis")
     @JsonIgnoreProperties({"perfis", "permissoes"})

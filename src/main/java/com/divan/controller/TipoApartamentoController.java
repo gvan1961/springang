@@ -1,5 +1,6 @@
 package com.divan.controller;
 
+import com.divan.dto.TipoApartamentoResponseDTO;
 import com.divan.entity.TipoApartamento;
 import com.divan.service.TipoApartamentoService;
 import jakarta.validation.Valid;
@@ -31,12 +32,19 @@ public class TipoApartamentoController {
         }
     }
     
-    @GetMapping
+   @GetMapping
     @PreAuthorize("hasAnyAuthority('APARTAMENTO_READ', 'ROLE_ADMIN')")
     public ResponseEntity<List<TipoApartamento>> listarTodos() {
         List<TipoApartamento> tipos = tipoApartamentoService.listarTodos();
         return ResponseEntity.ok(tipos);
     }
+    
+ //   @GetMapping
+ //   public ResponseEntity<List<TipoApartamentoResponseDTO>> listarTodos() {
+ //       List<TipoApartamentoResponseDTO> tipos = tipoApartamentoService.listarTodos();
+ //       return ResponseEntity.ok(tipos);
+ //   }
+    
     
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('APARTAMENTO_READ', 'ROLE_ADMIN')")

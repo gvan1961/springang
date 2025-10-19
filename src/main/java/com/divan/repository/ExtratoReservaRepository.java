@@ -1,6 +1,7 @@
 package com.divan.repository;
 
 import com.divan.entity.ExtratoReserva;
+import com.divan.entity.HistoricoHospede;
 import com.divan.entity.Reserva;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -22,4 +23,11 @@ public interface ExtratoReservaRepository extends JpaRepository<ExtratoReserva, 
     List<ExtratoReserva> findByPeriodo(LocalDateTime inicio, LocalDateTime fim);
     
     List<ExtratoReserva> findByReservaIdOrderByDataHoraLancamento(Long reservaId);
+    
+  //  List<ExtratoReserva> findByReservaId(Long reservaId);
+    
+    List<HistoricoHospede> findByReservaId(Long reservaId);
+    
+   // List<ExtratoReserva> findByReservaId(Long reservaId);
+    
 }

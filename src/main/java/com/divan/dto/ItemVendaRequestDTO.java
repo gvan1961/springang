@@ -17,4 +17,6 @@ public class ItemVendaRequestDTO {
     @Min(value = 1, message = "Quantidade deve ser no mínimo 1")
     @NotNull(message = "Quantidade é obrigatória")
     private Integer quantidade;
+    private String observacao;
 }
+

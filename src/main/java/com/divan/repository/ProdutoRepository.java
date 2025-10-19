@@ -23,4 +23,7 @@ public interface ProdutoRepository extends JpaRepository<Produto, Long> {
     
     @Query("SELECT p FROM Produto p ORDER BY p.nomeProduto")
     List<Produto> findAllOrderByNome();
+    
+    @Query("SELECT p FROM Produto p WHERE p.quantidade > 0 ORDER BY p.nomeProduto")
+    List<Produto> findProdutosDisponiveis();
 }

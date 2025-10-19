@@ -3,6 +3,8 @@ package com.divan.controller;
 import com.divan.dto.DiariaRequestDTO;
 import com.divan.dto.DiariaResponseDTO;
 import com.divan.entity.Diaria;
+import com.divan.entity.TipoApartamento;
+import com.divan.repository.TipoApartamentoRepository;
 import com.divan.service.DiariaService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +23,19 @@ public class DiariaController {
     
     @Autowired
     private DiariaService diariaService;
+    
+    @Autowired
+    private TipoApartamentoRepository tipoApartamentoRepository;
+    
+    @GetMapping("/tipo-apartamento/{tipoApartamentoId}")
+    public ResponseEntity<List<Diaria>> buscarPorTipoApartamento(@PathVariable Long tipoApartamentoId) {
+        TipoApartamento tipoApartamento = tipoApartamentoRepository.findById(tipoApartamentoId)
+            .orElseThrow(() -> new RuntimeException("Tipo de apartamento não encontrado"));
+        
+        List<Diaria> diarias = diariaRepository.findByTipoApartamentoOrderByQuantidadeAsc(tipoApartamento);
+        return ResponseEntity.ok(diarias);
+    }
+    
     
     @PostMapping
     public ResponseEntity<?> criar(@Valid @RequestBody DiariaRequestDTO dto) {

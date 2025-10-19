@@ -13,9 +13,9 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Entity
@@ -24,37 +24,37 @@ import java.util.stream.Collectors;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Usuario implements UserDetails {
-    
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    
+
     @NotBlank(message = "Nome é obrigatório")
     @Column(nullable = false, length = 100)
     private String nome;
-    
+
     @NotBlank(message = "Username é obrigatório")
     @Column(unique = true, nullable = false, length = 50)
     private String username;
-    
+
     @Email(message = "Email inválido")
     @NotBlank(message = "Email é obrigatório")
     @Column(unique = true, nullable = false, length = 100)
     private String email;
-    
+
     @NotBlank(message = "Senha é obrigatória")
     @Size(min = 6, message = "Senha deve ter no mínimo 6 caracteres")
     @Column(nullable = false)
     private String password;
-    
+
     @Column(nullable = false)
     private Boolean ativo = true;
-    
+
     @Column(nullable = false)
     private LocalDateTime dataCriacao = LocalDateTime.now();
-    
+
     private LocalDateTime ultimoAcesso;
-    
+
     @ManyToMany(fetch = FetchType.EAGER, cascade = CascadeType.MERGE)
     @JoinTable(
         name = "usuario_perfis",
@@ -62,8 +62,8 @@ public class Usuario implements UserDetails {
         inverseJoinColumns = @JoinColumn(name = "perfil_id")
     )
     @JsonIgnoreProperties("usuarios")
-    private List<Perfil> perfis = new ArrayList<>();
-    
+    private Set<Perfil> perfis = new HashSet<>();
+
     @ManyToMany(fetch = FetchType.EAGER, cascade = CascadeType.MERGE)
     @JoinTable(
         name = "usuario_permissoes",
@@ -71,54 +71,56 @@ public class Usuario implements UserDetails {
         inverseJoinColumns = @JoinColumn(name = "permissao_id")
     )
     @JsonIgnoreProperties("usuarios")
-    private List<Permissao> permissoes = new ArrayList<>();
-    
+    private Set<Permissao> permissoes = new HashSet<>();
+
     // Implementação UserDetails
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        List<GrantedAuthority> authorities = new ArrayList<>();
-        
+        Set<GrantedAuthority> authorities = new HashSet<>();
+
         // Adicionar permissões dos perfis
         for (Perfil perfil : perfis) {
             authorities.add(new SimpleGrantedAuthority("ROLE_" + perfil.getNome()));
             authorities.addAll(perfil.getPermissoes().stream()
                 .map(p -> new SimpleGrantedAuthority(p.getNome()))
-                .collect(Collectors.toList()));
+                .collect(Collectors.toSet()));
         }
-        
+
         // Adicionar permissões individuais do usuário
         authorities.addAll(permissoes.stream()
             .map(p -> new SimpleGrantedAuthority(p.getNome()))
-            .collect(Collectors.toList()));
-        
+            .collect(Collectors.toSet()));
+
+        System.out.println("🔐 Authorities carregadas para " + username + ": " + authorities);
+
         return authorities;
     }
-    
+
     @Override
     public String getPassword() {
         return password;
     }
-    
+
     @Override
     public String getUsername() {
         return username;
     }
-    
+
     @Override
     public boolean isAccountNonExpired() {
         return true;
     }
-    
+
     @Override
     public boolean isAccountNonLocked() {
         return ativo;
     }
-    
+
     @Override
     public boolean isCredentialsNonExpired() {
         return true;
     }
-    
+
     @Override
     public boolean isEnabled() {
         return ativo;

@@ -25,7 +25,9 @@ import { EmpresaRequest } from '../../models/empresa.model';
 
           <div class="form-group">
             <label>CNPJ *</label>
-            <input type="text" [(ngModel)]="empresa.cnpj" name="cnpj" required />
+            <input type="text" [(ngModel)]="empresa.cnpj" name="cnpj" required 
+                   (input)="formatarCnpj()" maxlength="18" 
+                   placeholder="00.000.000/0000-00" />
           </div>
 
           <div class="form-group">
@@ -35,7 +37,9 @@ import { EmpresaRequest } from '../../models/empresa.model';
 
           <div class="form-group">
             <label>Celular *</label>
-            <input type="text" [(ngModel)]="empresa.celular" name="celular" required />
+            <input type="text" [(ngModel)]="empresa.celular" name="celular" required 
+                   (input)="formatarCelular()" maxlength="15" 
+                   placeholder="(00) 00000-0000" />
           </div>
 
           <div *ngIf="errorMessage" class="error-message">
@@ -230,12 +234,20 @@ export class EmpresaFormApp implements OnInit {
 
     request.subscribe({
       next: () => {
+        console.log('✅ Empresa salva com sucesso!');
         this.router.navigate(['/empresas']);
       },
       error: (err) => {
         this.loading = false;
-        console.error('❌ Erro ao salvar:', err);
-        this.errorMessage = err.error?.message || 'Erro ao salvar empresa';
+        console.error('❌ ERRO COMPLETO:', err);
+        console.error('   Status:', err.status);
+        console.error('   Mensagem:', err.error);
+        
+        if (err.status === 401 || err.status === 403) {
+          this.errorMessage = 'Acesso não autorizado. Verifique suas permissões.';
+        } else {
+          this.errorMessage = err.error?.message || 'Erro ao salvar empresa';
+        }
       }
     });
   }
@@ -247,6 +259,49 @@ export class EmpresaFormApp implements OnInit {
       return false;
     }
     return true;
+  }
+
+  formatarCnpj(): void {
+    if (!this.empresa.cnpj) return;
+    
+    // Remove tudo que não é número
+    let cnpj = this.empresa.cnpj.replace(/\D/g, '');
+    
+    // Adiciona a formatação: 00.000.000/0000-00
+    if (cnpj.length > 2) {
+      cnpj = cnpj.substring(0, 2) + '.' + cnpj.substring(2);
+    }
+    if (cnpj.length > 6) {
+      cnpj = cnpj.substring(0, 6) + '.' + cnpj.substring(6);
+    }
+    if (cnpj.length > 10) {
+      cnpj = cnpj.substring(0, 10) + '/' + cnpj.substring(10);
+    }
+    if (cnpj.length > 15) {
+      cnpj = cnpj.substring(0, 15) + '-' + cnpj.substring(15, 17);
+    }
+    
+    this.empresa.cnpj = cnpj;
+  }
+
+  formatarCelular(): void {
+    if (!this.empresa.celular) return;
+    
+    // Remove tudo que não é número
+    let celular = this.empresa.celular.replace(/\D/g, '');
+    
+    // Adiciona a formatação: (00) 00000-0000
+    if (celular.length > 0) {
+      celular = '(' + celular;
+    }
+    if (celular.length > 3) {
+      celular = celular.substring(0, 3) + ') ' + celular.substring(3);
+    }
+    if (celular.length > 10) {
+      celular = celular.substring(0, 10) + '-' + celular.substring(10, 14);
+    }
+    
+    this.empresa.celular = celular;
   }
 
   voltar(): void {

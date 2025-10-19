@@ -78,4 +78,22 @@ public class ProdutoController {
             return ResponseEntity.badRequest().build();
         }
     }
+    
+  /*
+    @GetMapping("/disponiveis")
+    public ResponseEntity<List<Produto>> listarDisponiveis() {
+        List<Produto> produtos = produtoService.listarTodos()
+            .stream()
+            .filter(p -> p.getQuantidade() > 0)
+            .sorted((a, b) -> a.getNomeProduto().compareTo(b.getNomeProduto()))
+            .toList();
+        return ResponseEntity.ok(produtos);
+    }
+    */
+    
+    @GetMapping("/disponiveis")
+    public ResponseEntity<List<Produto>> listarDisponiveis() {
+        List<Produto> produtos = produtoService.listarDisponiveis();
+        return ResponseEntity.ok(produtos);
+    }
 }

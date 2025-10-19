@@ -31,5 +31,7 @@ public interface ApartamentoRepository extends JpaRepository<Apartamento, Long> 
            "((r.dataCheckin <= :checkout AND r.dataCheckout >= :checkin)))")
     List<Apartamento> findDisponiveisParaPeriodo(LocalDateTime checkin, LocalDateTime checkout);
     
-    boolean existsByNumeroApartamento(String numeroApartamento);
+    boolean existsByNumeroApartamento(String numeroApartamento);  
+
+    
 }

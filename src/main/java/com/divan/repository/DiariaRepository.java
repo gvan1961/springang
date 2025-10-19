@@ -12,10 +12,13 @@ import java.util.Optional;
 public interface DiariaRepository extends JpaRepository<Diaria, Long> {
     
     List<Diaria> findByTipoApartamento(TipoApartamento tipoApartamento);
-    
-    Optional<Diaria> findByTipoApartamentoAndQuantidade(TipoApartamento tipoApartamento, Integer quantidade);
-    
+           
     List<Diaria> findByTipoApartamentoOrderByQuantidade(TipoApartamento tipoApartamento);
     
     boolean existsByTipoApartamentoAndQuantidade(TipoApartamento tipoApartamento, Integer quantidade);
+        
+    List<Diaria> findByTipoApartamentoOrderByQuantidadeAsc(TipoApartamento tipoApartamento);
+    
+    Optional<Diaria> findByTipoApartamentoAndQuantidade(TipoApartamento tipoApartamento, Integer quantidade);
+    
 }

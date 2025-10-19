@@ -1,8 +1,12 @@
 package com.divan.controller;
 
+import com.divan.dto.ItemVendaRequestDTO;
 import com.divan.dto.ReservaRequestDTO;
+import com.divan.dto.ReservaResponseDTO;
 import com.divan.entity.Apartamento;
 import com.divan.entity.Cliente;
+import com.divan.entity.ItemVenda;
+import com.divan.entity.NotaVenda;
 import com.divan.entity.Reserva;
 import com.divan.service.ApartamentoService;
 import com.divan.service.ClienteService;
@@ -16,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -78,17 +83,26 @@ public class ReservaController {
         }
     }
     
+       
     @GetMapping
-    public ResponseEntity<List<Reserva>> listarTodas() {
-        List<Reserva> reservas = reservaService.listarTodas();
+    public ResponseEntity<List<ReservaResponseDTO>> listarTodas() {
+        List<ReservaResponseDTO> reservas = reservaService.listarTodasDTO();
         return ResponseEntity.ok(reservas);
     }
+   
+    
     
     @GetMapping("/{id}")
-    public ResponseEntity<Reserva> buscarPorId(@PathVariable Long id) {
-        Optional<Reserva> reserva = reservaService.buscarPorId(id);
-        return reserva.map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
-    }
+    public ResponseEntity<?> buscarPorId(@PathVariable Long id) {
+        try {
+            ReservaResponseDTO reserva = reservaService.buscarPorIdDTO(id);
+            return ResponseEntity.ok(reserva);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
+    }      
+   
+   
     
     @GetMapping("/ativas")
     public ResponseEntity<List<Reserva>> buscarAtivas() {
@@ -150,4 +164,62 @@ public class ReservaController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+    
+    @PatchMapping("/{id}/alterar-checkout")
+    public ResponseEntity<?> alterarDataCheckout(
+            @PathVariable Long id,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime novaDataCheckout,
+            @RequestParam(required = false) String motivo) {
+        try {
+            Reserva reserva = reservaService.alterarDataCheckout(id, novaDataCheckout, motivo);
+            return ResponseEntity.ok(reserva);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+    
+    @PostMapping("/{id}/consumo")
+    public ResponseEntity<?> adicionarProdutoAoConsumo(
+            @PathVariable Long id,
+            @RequestBody ItemVendaRequestDTO request) {
+        try {
+            Reserva reserva = reservaService.adicionarProdutoAoConsumo(
+                id, 
+                request.getProdutoId(), 
+                request.getQuantidade(), 
+                request.getObservacao()
+            );
+            return ResponseEntity.ok(reserva);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("erro", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/{id}/consumo")
+    public ResponseEntity<?> listarConsumo(@PathVariable Long id) {
+        try {
+            List<ItemVenda> itens = reservaService.listarConsumoPorReserva(id);
+            return ResponseEntity.ok(itens);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("erro", e.getMessage()));
+        }
+    }
+    
+    @GetMapping("/{id}/notas-venda")
+    public ResponseEntity<?> listarNotasVenda(@PathVariable Long id) {
+        try {
+            List<NotaVenda> notas = reservaService.listarNotasVendaPorReserva(id);
+            return ResponseEntity.ok(notas);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("erro", e.getMessage()));
+        }
+    }
+    
+    @GetMapping("/status/{status}")
+    public ResponseEntity<List<ReservaResponseDTO>> listarPorStatus(@PathVariable Reserva.StatusReservaEnum status) {
+        List<ReservaResponseDTO> reservas = reservaService.listarPorStatusDTO(status);
+        return ResponseEntity.ok(reservas);
+    }
+    
+        
 }

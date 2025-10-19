@@ -1,3 +1,4 @@
+
 package com.divan.repository;
 
 import com.divan.entity.Apartamento;
@@ -46,4 +47,12 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
     
     @Query("SELECT r FROM Reserva r WHERE r.totalApagar > 0")
     List<Reserva> findReservasComSaldoDevedor();
+      
+    List<Reserva> findByDataCheckinBetween(LocalDateTime inicio, LocalDateTime fim);
+    List<Reserva> findByDataCheckoutBetween(LocalDateTime inicio, LocalDateTime fim);
+    List<Reserva> findByDataCheckinBetweenOrDataCheckoutBetween(
+        LocalDateTime inicio1, LocalDateTime fim1, 
+        LocalDateTime inicio2, LocalDateTime fim2
+    );
+    
 }

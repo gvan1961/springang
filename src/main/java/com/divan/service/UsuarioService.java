@@ -12,7 +12,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -51,16 +51,16 @@ public class UsuarioService {
         usuario.setPassword(passwordEncoder.encode(dto.getPassword()));
         usuario.setAtivo(dto.getAtivo());
         
-        // Adicionar perfis
+        // ✅ LINHA 57 CORRIGIDA: Adicionar perfis
         if (dto.getPerfisIds() != null && !dto.getPerfisIds().isEmpty()) {
             List<Perfil> perfis = perfilRepository.findAllById(dto.getPerfisIds());
-            usuario.setPerfis(perfis);
+            usuario.setPerfis(new HashSet<>(perfis)); // ✅ Converter List para HashSet
         }
         
-        // Adicionar permissões individuais
+        // ✅ LINHA 63 CORRIGIDA: Adicionar permissões individuais
         if (dto.getPermissoesIds() != null && !dto.getPermissoesIds().isEmpty()) {
             List<Permissao> permissoes = permissaoRepository.findAllById(dto.getPermissoesIds());
-            usuario.setPermissoes(permissoes);
+            usuario.setPermissoes(new HashSet<>(permissoes)); // ✅ Converter List para HashSet
         }
         
         return usuarioRepository.save(usuario);
@@ -74,20 +74,20 @@ public class UsuarioService {
         usuario.setEmail(dto.getEmail());
         usuario.setAtivo(dto.getAtivo());
         
-        // Atualizar perfis
+        // ✅ LINHAS 80-82 CORRIGIDAS: Atualizar perfis
         if (dto.getPerfisIds() != null) {
             List<Perfil> perfis = perfilRepository.findAllById(dto.getPerfisIds());
-            usuario.setPerfis(perfis);
+            usuario.setPerfis(new HashSet<>(perfis)); // ✅ Converter List para HashSet
         } else {
-            usuario.setPerfis(new ArrayList<>());
+            usuario.setPerfis(new HashSet<>()); // ✅ Usar HashSet vazio em vez de ArrayList
         }
         
-        // Atualizar permissões individuais
+        // ✅ LINHAS 88-90 CORRIGIDAS: Atualizar permissões individuais
         if (dto.getPermissoesIds() != null) {
             List<Permissao> permissoes = permissaoRepository.findAllById(dto.getPermissoesIds());
-            usuario.setPermissoes(permissoes);
+            usuario.setPermissoes(new HashSet<>(permissoes)); // ✅ Converter List para HashSet
         } else {
-            usuario.setPermissoes(new ArrayList<>());
+            usuario.setPermissoes(new HashSet<>()); // ✅ Usar HashSet vazio em vez de ArrayList
         }
         
         return usuarioRepository.save(usuario);

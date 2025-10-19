@@ -1,5 +1,7 @@
 package com.divan.controller;
 
+import com.divan.dto.ApartamentoRequestDTO;
+import com.divan.dto.ApartamentoResponseDTO;
 import com.divan.entity.Apartamento;
 import com.divan.service.ApartamentoService;
 import jakarta.validation.Valid;
@@ -21,26 +23,36 @@ public class ApartamentoController {
     @Autowired
     private ApartamentoService apartamentoService;
     
+    // ✅ ATUALIZADO - Usar DTO
     @PostMapping
-    public ResponseEntity<Apartamento> criar(@Valid @RequestBody Apartamento apartamento) {
+    public ResponseEntity<?> criar(@Valid @RequestBody ApartamentoRequestDTO dto) {
         try {
-            Apartamento apartamentoSalvo = apartamentoService.salvar(apartamento);
-            return ResponseEntity.status(HttpStatus.CREATED).body(apartamentoSalvo);
+            System.out.println("🔵 POST /api/apartamentos - DTO recebido: " + dto);
+            ApartamentoResponseDTO apartamento = apartamentoService.criarComDTO(dto);
+            return ResponseEntity.status(HttpStatus.CREATED).body(apartamento);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+            System.err.println("❌ Erro ao criar apartamento: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
     
+    // ✅ ATUALIZADO - Retornar DTOs
     @GetMapping
-    public ResponseEntity<List<Apartamento>> listarTodos() {
-        List<Apartamento> apartamentos = apartamentoService.listarTodos();
+    public ResponseEntity<List<ApartamentoResponseDTO>> listarTodos() {
+        List<ApartamentoResponseDTO> apartamentos = apartamentoService.listarTodosDTO();
         return ResponseEntity.ok(apartamentos);
     }
     
+    // ✅ ATUALIZADO - Retornar DTO
     @GetMapping("/{id}")
-    public ResponseEntity<Apartamento> buscarPorId(@PathVariable Long id) {
-        Optional<Apartamento> apartamento = apartamentoService.buscarPorId(id);
-        return apartamento.map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<ApartamentoResponseDTO> buscarPorId(@PathVariable Long id) {
+        try {
+            ApartamentoResponseDTO apartamento = apartamentoService.buscarPorIdDTO(id);
+            return ResponseEntity.ok(apartamento);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
     }
     
     @GetMapping("/numero/{numero}")
@@ -75,13 +87,17 @@ public class ApartamentoController {
         return ResponseEntity.ok(apartamentos);
     }
     
+    // ✅ ATUALIZADO - Usar DTO
     @PutMapping("/{id}")
-    public ResponseEntity<Apartamento> atualizar(@PathVariable Long id, @Valid @RequestBody Apartamento apartamento) {
+    public ResponseEntity<?> atualizar(@PathVariable Long id, @Valid @RequestBody ApartamentoRequestDTO dto) {
         try {
-            Apartamento apartamentoAtualizado = apartamentoService.atualizar(id, apartamento);
-            return ResponseEntity.ok(apartamentoAtualizado);
+            System.out.println("🔵 PUT /api/apartamentos/" + id + " - DTO recebido: " + dto);
+            ApartamentoResponseDTO apartamento = apartamentoService.atualizarComDTO(id, dto);
+            return ResponseEntity.ok(apartamento);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+            System.err.println("❌ Erro ao atualizar apartamento: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
     
@@ -92,6 +108,62 @@ public class ApartamentoController {
             return ResponseEntity.ok(apartamento);
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
+        }
+    }
+    
+    @PatchMapping("/{id}/liberar-limpeza")
+    public ResponseEntity<?> liberarLimpeza(@PathVariable Long id) {
+        try {
+            Apartamento apartamento = apartamentoService.liberarLimpeza(id);
+            return ResponseEntity.ok(apartamento);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PatchMapping("/{id}/manutencao")
+    public ResponseEntity<?> colocarEmManutencao(
+        @PathVariable Long id,
+        @RequestParam(required = false) String motivo
+    ) {
+        try {
+            Apartamento apartamento = apartamentoService.colocarEmManutencao(id, motivo);
+            return ResponseEntity.ok(apartamento);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PatchMapping("/{id}/liberar-manutencao")
+    public ResponseEntity<?> liberarManutencao(@PathVariable Long id) {
+        try {
+            Apartamento apartamento = apartamentoService.liberarManutencao(id);
+            return ResponseEntity.ok(apartamento);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PatchMapping("/{id}/bloquear")
+    public ResponseEntity<?> bloquear(
+        @PathVariable Long id,
+        @RequestParam(required = false) String motivo
+    ) {
+        try {
+            Apartamento apartamento = apartamentoService.bloquear(id, motivo);
+            return ResponseEntity.ok(apartamento);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PatchMapping("/{id}/desbloquear")
+    public ResponseEntity<?> desbloquear(@PathVariable Long id) {
+        try {
+            Apartamento apartamento = apartamentoService.desbloquear(id);
+            return ResponseEntity.ok(apartamento);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 }

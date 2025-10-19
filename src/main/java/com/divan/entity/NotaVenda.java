@@ -31,6 +31,9 @@ public class NotaVenda {
     @Column(nullable = false)
     private TipoVendaEnum tipoVenda;
     
+    @Column(name = "observacao", length = 500)
+    private String observacao;
+    
     @ManyToOne
     @JoinColumn(name = "reserva_id")
     @JsonIgnoreProperties({"notasVenda", "extratos", "historicos"})
@@ -48,4 +51,12 @@ public class NotaVenda {
     public enum TipoVendaEnum {
         VISTA, APARTAMENTO
     }
+    
+    public enum Status {
+        ABERTA, FECHADA, CANCELADA
+    }
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status")
+    private Status status;
 }

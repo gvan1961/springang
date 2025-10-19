@@ -52,7 +52,7 @@ public class ExtratoReserva {
     @Column(length = 200)
     private String descricao;
     
-    @Column
+    @Column(name = "nota_venda_id")
     private Long notaVendaId;
     
     public enum StatusLancamentoEnum {

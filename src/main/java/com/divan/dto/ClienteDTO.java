@@ -1,5 +1,7 @@
 package com.divan.dto;
 
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -28,8 +30,24 @@ public class ClienteDTO {
     
     private String endereco;
     
-    @Pattern(regexp = "\\d{5}-\\d{3}", message = "CEP deve estar no formato XXXXX-XXX")
+   // @Pattern(regexp = "\\d{5}-\\d{3}", message = "CEP deve estar no formato XXXXX-XXX")
+    @Pattern(regexp = "\\d{5}-?\\d{3}", message = "CEP deve ter 8 dígitos")
     private String cep;
+    
+    @PrePersist
+    @PreUpdate
+    private void normalizarCep() {
+        if (cep != null) {
+            // Remove tudo que não é número
+            cep = cep.replaceAll("\\D", "");
+            // Adiciona o traço: 57316-175
+            if (cep.length() == 8) {
+                cep = cep.substring(0, 5) + "-" + cep.substring(5);
+            }
+        }
+    }
+    
+    
     
     private String cidade;
     private String estado;

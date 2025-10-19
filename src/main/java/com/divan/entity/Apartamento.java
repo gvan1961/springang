@@ -23,35 +23,44 @@ public class Apartamento {
     private Long id;
     
     @NotBlank(message = "Número do apartamento é obrigatório")
-    @Column(unique = true, nullable = false)
+    @Column(unique = true, nullable = false, length = 10)
     private String numeroApartamento;
     
-    @NotNull(message = "Tipo de apartamento é obrigatório")
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "tipo_apartamento_id", nullable = false)
-    @JsonIgnoreProperties({"apartamentos", "diarias"})
+    @NotNull(message = "Tipo de apartamento é obrigatório")
+    @JsonIgnoreProperties("apartamentos")
     private TipoApartamento tipoApartamento;
     
-    @Min(value = 1, message = "Capacidade deve ser no mínimo 1")
+    @NotNull(message = "Capacidade é obrigatória")
+    @Min(value = 1, message = "Capacidade deve ser no mínimo 1 pessoa")
     @Column(nullable = false)
     private Integer capacidade;
     
-    @NotBlank(message = "Camas do apartamento é obrigatório")
-    @Column(nullable = false, length = 100)
-    private String camasDoApartamento;
+    // ✅✅✅ CORRIGIR AQUI - camelCase ✅✅✅
+    @NotBlank(message = "Descrição das camas é obrigatória")
+    @Column(name = "camas_do_apartamento", nullable = false, length = 200)
+    private String camasDoApartamento; // ✅ CORRETO - camelCase
     
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private StatusEnum status = StatusEnum.DISPONIVEL;
+   
     
-    @Column(length = 50)
+    @Column(length =200)
     private String tv;
     
-    @OneToMany(mappedBy = "apartamento", cascade = CascadeType.ALL)
-    @JsonIgnoreProperties({"apartamento", "cliente", "diaria", "extratos", "historicos", "notasVenda"})
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private StatusEnum status = StatusEnum.DISPONIVEL;
+    
+    @OneToMany(mappedBy = "apartamento")
+    @JsonIgnoreProperties("apartamento")
     private List<Reserva> reservas;
     
     public enum StatusEnum {
-        DISPONIVEL, OCUPADO, LIMPEZA, PRE_RESERVA, MANUTENCAO
+        DISPONIVEL,
+        OCUPADO,
+        LIMPEZA,
+        PRE_RESERVA,
+        MANUTENCAO,
+        INDISPONIVEL
     }
 }
