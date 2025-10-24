@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "contas_receber")
@@ -51,6 +52,9 @@ public class ContaAReceber {
     private LocalDate dataVencimento;
     
     private LocalDate dataPagamento;
+    
+    private LocalDateTime dataCriacao;
+    private String observacao; // Mais detalhes
     
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

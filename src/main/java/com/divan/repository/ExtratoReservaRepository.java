@@ -5,6 +5,7 @@ import com.divan.entity.HistoricoHospede;
 import com.divan.entity.Reserva;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -15,8 +16,9 @@ public interface ExtratoReservaRepository extends JpaRepository<ExtratoReserva, 
     
     List<ExtratoReserva> findByReserva(Reserva reserva);
     
-    List<ExtratoReserva> findByReservaOrderByDataHoraLancamento(Reserva reserva);
+    List<ExtratoReserva> findByReservaOrderByDataHoraLancamento(Reserva reserva);    
     
+       
     List<ExtratoReserva> findByStatusLancamento(ExtratoReserva.StatusLancamentoEnum status);
     
     @Query("SELECT e FROM ExtratoReserva e WHERE e.dataHoraLancamento BETWEEN :inicio AND :fim")
@@ -24,10 +26,14 @@ public interface ExtratoReservaRepository extends JpaRepository<ExtratoReserva, 
     
     List<ExtratoReserva> findByReservaIdOrderByDataHoraLancamento(Long reservaId);
     
-  //  List<ExtratoReserva> findByReservaId(Long reservaId);
+      
+ //   List<HistoricoHospede> findByReservaId(Long reservaId);  
     
-    List<HistoricoHospede> findByReservaId(Long reservaId);
     
-   // List<ExtratoReserva> findByReservaId(Long reservaId);
+ // ✅ MÉTODO CORRETO - Retorna List<ExtratoReserva>
+    @Query("SELECT e FROM ExtratoReserva e WHERE e.reserva.id = :reservaId")
+    List<ExtratoReserva> findByReservaId(@Param("reservaId") Long reservaId);   
+   
+   
     
 }

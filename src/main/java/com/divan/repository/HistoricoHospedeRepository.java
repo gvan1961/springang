@@ -16,5 +16,7 @@ public interface HistoricoHospedeRepository extends JpaRepository<HistoricoHospe
     
     List<HistoricoHospede> findByReservaIdOrderByDataHoraDesc(Long reservaId);
     
-    List<HistoricoHospede> findByReservaId(Long reservaId);
+    List<HistoricoHospede> findByReservaId(Long reservaId);    
+       
+    
 }

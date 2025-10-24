@@ -1,8 +1,10 @@
 package com.divan.controller;
 
 import com.divan.dto.ItemVendaRequestDTO;
+import com.divan.dto.ReservaDetalhesDTO;
 import com.divan.dto.ReservaRequestDTO;
 import com.divan.dto.ReservaResponseDTO;
+import com.divan.dto.TransferenciaApartamentoDTO;
 import com.divan.entity.Apartamento;
 import com.divan.entity.Cliente;
 import com.divan.entity.ItemVenda;
@@ -17,6 +19,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.divan.dto.ReservaDetalhesDTO;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -91,7 +94,7 @@ public class ReservaController {
     }
    
     
-    
+ /*   
     @GetMapping("/{id}")
     public ResponseEntity<?> buscarPorId(@PathVariable Long id) {
         try {
@@ -100,7 +103,24 @@ public class ReservaController {
         } catch (Exception e) {
             return ResponseEntity.notFound().build();
         }
-    }      
+    }
+    
+    */
+    
+    @GetMapping("/{id}")
+    public ResponseEntity<ReservaDetalhesDTO> buscarPorId(@PathVariable Long id) {
+        System.out.println("📋 Requisição para buscar reserva: " + id);
+        
+        ReservaDetalhesDTO reserva = reservaService.buscarDetalhes(id);
+        
+        System.out.println("📤 Retornando reserva com:");
+        System.out.println("  Total Diária: R$ " + reserva.getTotalDiaria());
+        System.out.println("  Total Produto: R$ " + reserva.getTotalProduto());
+        System.out.println("  Total Hospedagem: R$ " + reserva.getTotalHospedagem());
+        
+        return ResponseEntity.ok(reserva);
+    }
+    
    
    
     
@@ -221,5 +241,15 @@ public class ReservaController {
         return ResponseEntity.ok(reservas);
     }
     
-        
+    @PostMapping("/transferir-apartamento")
+    public ResponseEntity<?> transferirApartamento(@RequestBody TransferenciaApartamentoDTO dto) {
+        try {
+            Reserva reserva = reservaService.transferirApartamento(dto);
+            return ResponseEntity.ok(reserva);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("erro", e.getMessage()));
+        }
+    }
+    
+           
 }

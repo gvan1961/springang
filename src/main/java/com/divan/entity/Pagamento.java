@@ -44,6 +44,6 @@ public class Pagamento {
     private String observacao;
     
     public enum FormaPagamentoEnum {
-        DINHEIRO, PIX, CARTAO_DEBITO, CARTAO_CREDITO, TRANSFERENCIA_BANCARIA, FATURADO
+        ESCOLHA, DINHEIRO, PIX, CARTAO_DEBITO, CARTAO_CREDITO, TRANSFERENCIA_BANCARIA, FATURADO
     }
 }

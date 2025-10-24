@@ -66,7 +66,8 @@ public class ApartamentoController {
         List<Apartamento> apartamentos = apartamentoService.buscarDisponiveis();
         return ResponseEntity.ok(apartamentos);
     }
-    
+           
+        
     @GetMapping("/ocupados")
     public ResponseEntity<List<Apartamento>> buscarOcupados() {
         List<Apartamento> apartamentos = apartamentoService.buscarOcupados();

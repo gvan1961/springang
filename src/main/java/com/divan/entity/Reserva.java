@@ -101,3 +101,7 @@ public class Reserva {
         ATIVA, CANCELADA, FINALIZADA
     }
 }
+
+
+//@OneToMany(mappedBy = "reserva", cascade = CascadeType.ALL, orphanRemoval = true)
+//private List<NotaVenda> notasVenda;

@@ -18,7 +18,8 @@ public class ReservaResponseDTO {
     
     private Long id;
     private ClienteResponseDTO cliente;
-    private ApartamentoResponseDTO apartamento;
+    private ApartamentoResponseDTO apartamento;      
+    
     
     private Integer quantidadeHospede;
     private LocalDateTime checkin;
