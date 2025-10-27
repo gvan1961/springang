@@ -11,6 +11,8 @@ interface ReservaDetalhes {
     nome: string;
     cpf: string;
     telefone?: string;
+    celular?: string;
+    dataNascimento?: string;
   };
   apartamento?: {
     id: number;
@@ -28,9 +30,12 @@ interface ReservaDetalhes {
   totalRecebido: number;
   totalApagar: number;
   totalProduto?: number;
+  desconto?: number;
+  totalConsumo?: number;
   status: string;
   extratos?: any[];
   historicos?: any[];
+  observacoes?: string;
 }
 
 interface Produto {
@@ -99,7 +104,7 @@ interface Apartamento {
             </div>
             <div class="info-item">
               <span class="label">Telefone:</span>
-              <span class="value">{{ reserva.cliente?.telefone || 'N/A' }}</span>
+              <span class="value">{{ reserva.cliente?.celular || reserva.cliente?.telefone || 'N/A' }}</span>
             </div>
           </div>
 
@@ -251,6 +256,13 @@ interface Apartamento {
         <div class="card acoes-card">
           <h2>⚙️ Ações</h2>
           <div class="botoes-acoes">
+            <!-- BOTÃO DOCUMENTAR CHECK-IN -->
+            <button class="btn-acao btn-checkin" 
+                    *ngIf="reserva.status === 'ATIVA'"
+                    (click)="abrirModalCheckin()">
+              📄 Documentar Check-in
+            </button>
+
             <button class="btn-acao btn-pagamento" 
                     *ngIf="reserva.status === 'ATIVA' && (reserva.totalApagar || 0) > 0"
                     (click)="abrirModalPagamento()">
@@ -275,10 +287,56 @@ interface Apartamento {
               ✅ Finalizar Reserva
             </button>
             
+           <!-- BOTÃO IMPRIMIR RECIBO/FATURA -->
+             <button class="btn-acao btn-recibo" 
+             *ngIf="reserva.status === 'FINALIZADA'"
+             (click)="imprimirRecibo()">
+             📄 {{ (reserva.totalApagar || 0) > 0 ? 'Imprimir Fatura' : 'Imprimir Recibo' }}
+             </button>
+            
             <button class="btn-acao btn-cancelar" 
                     *ngIf="reserva.status === 'ATIVA'"
                     (click)="cancelarReserva()">
               ❌ Cancelar Reserva
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL DOCUMENTAR CHECK-IN -->
+      <div class="modal-overlay" *ngIf="modalCheckin" (click)="fecharModalCheckin()">
+        <div class="modal-content" (click)="$event.stopPropagation()">
+          <h2>📄 Documentar Check-in</h2>
+          
+          <div class="info-box">
+            <p><strong>Reserva:</strong> #{{ reserva?.id }}</p>
+            <p><strong>Cliente:</strong> {{ reserva?.cliente?.nome }}</p>
+            <p><strong>Apartamento:</strong> {{ reserva?.apartamento?.numeroApartamento }}</p>
+          </div>
+
+          <div class="campo">
+            <label>Observações</label>
+            <textarea 
+              [(ngModel)]="observacoesCheckin" 
+              rows="4"
+              placeholder="Digite observações sobre a reserva (opcional)..."></textarea>
+            <small>Informações adicionais que aparecerão na fatura</small>
+          </div>
+
+          <div class="campo">
+            <label>
+              <input type="checkbox" [(ngModel)]="mensagemAniversariante">
+              Incluir mensagem de aniversariante
+            </label>
+            <small>Mostrará "Feliz Aniversário" se o hóspede faz aniversário este mês</small>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn-cancelar-modal" (click)="fecharModalCheckin()">
+              Cancelar
+            </button>
+            <button class="btn-confirmar" (click)="gerarDocumentoCheckin()">
+              📄 Gerar e Imprimir
             </button>
           </div>
         </div>
@@ -472,20 +530,24 @@ interface Apartamento {
     </div>
   `,
   styles: [`
+    /* CONTAINER PRINCIPAL */
     .container-detalhes {
       padding: 20px;
       max-width: 1400px;
       margin: 0 auto;
+      min-height: 100vh;
+      background: #f5f7fa;
     }
 
+    /* LOADING */
     .loading {
       text-align: center;
-      padding: 60px 20px;
+      padding: 60px;
     }
 
     .spinner {
       border: 4px solid #f3f3f3;
-      border-top: 4px solid #4CAF50;
+      border-top: 4px solid #667eea;
       border-radius: 50%;
       width: 50px;
       height: 50px;
@@ -498,78 +560,90 @@ interface Apartamento {
       100% { transform: rotate(360deg); }
     }
 
+    /* ERRO */
     .erro {
-      background: #ffebee;
-      border: 2px solid #f44336;
-      border-radius: 8px;
-      padding: 30px;
       text-align: center;
+      padding: 40px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
 
     .erro h2 {
-      color: #c62828;
-      margin: 0 0 15px 0;
+      color: #e74c3c;
+      margin-bottom: 15px;
     }
 
     .erro button {
       margin-top: 20px;
-      padding: 10px 24px;
-      background: #4CAF50;
+      padding: 10px 20px;
+      background: #667eea;
       color: white;
       border: none;
       border-radius: 6px;
       cursor: pointer;
     }
 
+    /* HEADER */
     .header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 30px;
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
 
     .header h1 {
-      margin: 0 0 10px 0;
+      margin: 0;
       color: #2c3e50;
+      font-size: 2em;
     }
 
     .badge-status {
+      display: inline-block;
       padding: 6px 16px;
-      border-radius: 12px;
-      font-size: 0.9em;
+      border-radius: 20px;
+      font-size: 0.85em;
       font-weight: 600;
+      margin-left: 15px;
       text-transform: uppercase;
     }
 
     .status-ativa {
-      background: #c8e6c9;
-      color: #2e7d32;
+      background: #d4edda;
+      color: #155724;
     }
 
     .status-finalizada {
-      background: #bbdefb;
-      color: #1565c0;
+      background: #cce5ff;
+      color: #004085;
     }
 
     .status-cancelada {
-      background: #ffcdd2;
-      color: #c62828;
+      background: #f8d7da;
+      color: #721c24;
     }
 
     .btn-voltar {
-      padding: 10px 20px;
       background: #95a5a6;
       color: white;
       border: none;
+      padding: 10px 20px;
       border-radius: 6px;
       cursor: pointer;
       font-weight: 600;
+      transition: all 0.3s;
     }
 
     .btn-voltar:hover {
       background: #7f8c8d;
+      transform: translateY(-2px);
     }
 
+    /* GRID DE CARDS */
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -577,64 +651,95 @@ interface Apartamento {
       margin-bottom: 20px;
     }
 
+    /* CARDS */
     .card {
       background: white;
       border-radius: 12px;
-      padding: 24px;
+      padding: 25px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      transition: all 0.3s;
+    }
+
+    .card:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
 
     .card h2 {
       margin: 0 0 20px 0;
       color: #2c3e50;
-      font-size: 1.2em;
-      border-bottom: 2px solid #e0e0e0;
+      font-size: 1.3em;
+      border-bottom: 2px solid #667eea;
       padding-bottom: 10px;
     }
 
+    /* INFO ITEMS */
     .info-item {
       display: flex;
       justify-content: space-between;
-      padding: 10px 0;
-      border-bottom: 1px solid #f5f5f5;
+      padding: 12px 0;
+      border-bottom: 1px solid #ecf0f1;
     }
 
     .info-item:last-child {
       border-bottom: none;
     }
 
-    .info-item.destaque {
-      font-weight: 600;
-      font-size: 1.1em;
-      background: #f5f5f5;
-      padding: 12px;
-      border-radius: 6px;
-      margin-top: 10px;
+    .info-item .label {
+      color: #7f8c8d;
+      font-weight: 500;
     }
 
+    .info-item .value {
+      color: #2c3e50;
+      font-weight: 600;
+    }
+
+    .info-item.destaque {
+      background: #f8f9fa;
+      margin: 0 -10px;
+      padding: 12px 10px;
+      border-radius: 6px;
+      border-bottom: none;
+    }
+
+    .numero-apt {
+      font-size: 1.3em;
+      color: #667eea;
+    }
+
+    .valor-positivo {
+      color: #27ae60;
+    }
+
+    .valor-negativo {
+      color: #e74c3c;
+    }
+
+    /* INFO ITEM COM BOTÃO */
     .info-item-com-botao {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      gap: 10px;
-      border-bottom: 1px solid #f5f5f5;
+      justify-content: space-between;
+      border-bottom: 1px solid #ecf0f1;
+      padding: 12px 0;
     }
 
     .info-item-com-botao .info-item {
-      border-bottom: none;
       flex: 1;
-      padding: 10px 0;
+      border: none;
+      padding: 0;
     }
 
     .btn-mini {
-      padding: 4px 8px;
       background: #3498db;
       color: white;
       border: none;
+      padding: 6px 10px;
       border-radius: 4px;
       cursor: pointer;
-      font-size: 0.9em;
-      transition: all 0.3s ease;
+      font-size: 1em;
+      transition: all 0.3s;
+      margin-left: 10px;
     }
 
     .btn-mini:hover {
@@ -642,84 +747,71 @@ interface Apartamento {
       transform: scale(1.1);
     }
 
-    .label {
-      color: #7f8c8d;
-      font-weight: 600;
-    }
-
-    .value {
-      color: #2c3e50;
-      font-weight: 500;
-    }
-
-    .numero-apt {
-      background: #e3f2fd;
-      color: #1976d2;
-      padding: 4px 12px;
-      border-radius: 12px;
-      font-weight: 600;
-    }
-
-    .valor-positivo {
-      color: #4CAF50;
-      font-weight: 700;
-    }
-
-    .valor-negativo {
-      color: #f44336;
-      font-weight: 700;
-    }
-
-    .extrato-card, .historico-card, .acoes-card {
+    /* EXTRATO */
+    .extrato-card {
       grid-column: 1 / -1;
     }
 
     .tabela-extrato {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 10px;
+      margin-top: 15px;
     }
 
     .tabela-extrato th {
-      background: #2c3e50;
-      color: white;
+      background: #f8f9fa;
       padding: 12px;
       text-align: left;
       font-weight: 600;
+      color: #2c3e50;
+      border-bottom: 2px solid #dee2e6;
     }
 
     .tabela-extrato td {
-      padding: 10px 12px;
-      border-bottom: 1px solid #e0e0e0;
+      padding: 12px;
+      border-bottom: 1px solid #ecf0f1;
+    }
+
+    .tabela-extrato tr:hover {
+      background: #f8f9fa;
     }
 
     .badge-extrato {
       padding: 4px 8px;
-      border-radius: 8px;
-      font-size: 0.75em;
+      border-radius: 4px;
+      font-size: 0.8em;
       font-weight: 600;
-      text-transform: uppercase;
       margin-right: 8px;
     }
 
     .badge-diaria {
-      background: #c8e6c9;
-      color: #2e7d32;
+      background: #d4edda;
+      color: #155724;
     }
 
-    .badge-produto {
-      background: #fff9c4;
-      color: #f57f17;
+    .badge-consumo {
+      background: #fff3cd;
+      color: #856404;
     }
 
-    .badge-estorno {
-      background: #ffcdd2;
-      color: #c62828;
+    .badge-pagamento {
+      background: #cce5ff;
+      color: #004085;
+    }
+
+    .badge-desconto {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    /* HISTÓRICO */
+    .historico-card {
+      grid-column: 1 / -1;
     }
 
     .timeline {
       position: relative;
-      padding-left: 30px;
+      padding: 20px 0 20px 40px;
     }
 
     .timeline::before {
@@ -729,29 +821,30 @@ interface Apartamento {
       top: 0;
       bottom: 0;
       width: 2px;
-      background: #e0e0e0;
+      background: #dee2e6;
     }
 
     .timeline-item {
       position: relative;
-      padding-bottom: 20px;
+      margin-bottom: 20px;
     }
 
     .timeline-marker {
       position: absolute;
-      left: -24px;
+      left: -35px;
       width: 12px;
       height: 12px;
       border-radius: 50%;
-      background: #4CAF50;
+      background: #667eea;
       border: 3px solid white;
-      box-shadow: 0 0 0 2px #4CAF50;
+      box-shadow: 0 0 0 2px #667eea;
     }
 
     .timeline-content {
-      background: #f5f5f5;
+      background: #f8f9fa;
       padding: 15px;
       border-radius: 8px;
+      border-left: 3px solid #667eea;
     }
 
     .timeline-header {
@@ -759,100 +852,111 @@ interface Apartamento {
     }
 
     .timeline-date {
+      font-size: 0.9em;
       color: #7f8c8d;
-      font-size: 0.85em;
       font-weight: 600;
     }
 
     .timeline-body p {
-      margin: 0 0 8px 0;
+      margin: 0 0 5px 0;
       color: #2c3e50;
     }
 
     .timeline-body small {
-      color: #7f8c8d;
-      font-size: 0.85em;
+      color: #95a5a6;
+    }
+
+    /* AÇÕES */
+    .acoes-card {
+      grid-column: 1 / -1;
     }
 
     .botoes-acoes {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-top: 15px;
     }
 
     .btn-acao {
-      padding: 12px 24px;
+      padding: 15px 20px;
       border: none;
       border-radius: 8px;
-      font-size: 1em;
-      font-weight: 600;
       cursor: pointer;
-      transition: all 0.3s ease;
-      color: white;
+      font-weight: 600;
+      font-size: 1em;
+      transition: all 0.3s;
+      text-align: center;
     }
 
     .btn-acao:hover {
-      transform: translateY(-2px);
+      transform: translateY(-3px);
       box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
 
-    .btn-pagamento {
+    .btn-checkin {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .btn-pagamento {
+      background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+      color: white;
     }
 
     .btn-consumo {
-      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+      color: white;
     }
 
     .btn-transferir {
-      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+      color: white;
     }
 
     .btn-finalizar {
-      background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+      background: linear-gradient(135deg, #1abc9c 0%, #16a085 100%);
+      color: white;
+    }
+
+    .btn-recibo {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      color: white;
     }
 
     .btn-cancelar {
-      background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+      background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+      color: white;
     }
 
+    /* MODAIS */
     .modal-overlay {
       position: fixed;
       top: 0;
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(0,0,0,0.7);
+      background: rgba(0, 0, 0, 0.6);
       display: flex;
       justify-content: center;
       align-items: center;
-      z-index: 1000;
+      z-index: 9999;
+      padding: 20px;
     }
 
     .modal-content {
       background: white;
-      padding: 30px;
       border-radius: 12px;
-      min-width: 500px;
-      max-width: 90%;
+      padding: 30px;
+      max-width: 500px;
+      width: 100%;
       max-height: 90vh;
       overflow-y: auto;
-      animation: slideDown 0.3s ease;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
     }
 
-    .modal-grande {
-      min-width: 600px;
-    }
-
-    @keyframes slideDown {
-      from {
-        transform: translateY(-50px);
-        opacity: 0;
-      }
-      to {
-        transform: translateY(0);
-        opacity: 1;
-      }
+    .modal-content.modal-grande {
+      max-width: 700px;
     }
 
     .modal-content h2 {
@@ -861,14 +965,16 @@ interface Apartamento {
     }
 
     .info-box {
-      background: #f5f5f5;
+      background: #e3f2fd;
       padding: 15px;
       border-radius: 8px;
       margin-bottom: 20px;
+      border-left: 4px solid #2196f3;
     }
 
     .info-box p {
-      margin: 8px 0;
+      margin: 5px 0;
+      color: #1976d2;
     }
 
     .campo {
@@ -878,8 +984,8 @@ interface Apartamento {
     .campo label {
       display: block;
       margin-bottom: 8px;
-      font-weight: 600;
       color: #2c3e50;
+      font-weight: 600;
     }
 
     .campo input[type="text"],
@@ -888,49 +994,49 @@ interface Apartamento {
     .campo select,
     .campo textarea {
       width: 100%;
-      padding: 12px;
+      padding: 10px;
       border: 2px solid #e0e0e0;
       border-radius: 6px;
       font-size: 1em;
-      font-family: inherit;
+      transition: all 0.3s;
       box-sizing: border-box;
-    }
-
-    .campo input[type="checkbox"] {
-      width: auto;
-      margin-right: 8px;
     }
 
     .campo input:focus,
     .campo select:focus,
     .campo textarea:focus {
       outline: none;
-      border-color: #4CAF50;
+      border-color: #667eea;
     }
 
     .campo small {
       display: block;
       margin-top: 5px;
       color: #7f8c8d;
-      font-size: 0.85em;
+      font-size: 0.9em;
+    }
+
+    .campo input[type="checkbox"] {
+      margin-right: 8px;
     }
 
     .modal-footer {
       display: flex;
-      gap: 10px;
       justify-content: flex-end;
-      margin-top: 20px;
+      gap: 10px;
+      margin-top: 25px;
+      padding-top: 20px;
+      border-top: 1px solid #ecf0f1;
     }
 
     .btn-cancelar-modal,
     .btn-confirmar {
-      padding: 12px 24px;
+      padding: 10px 20px;
       border: none;
       border-radius: 6px;
-      font-size: 1em;
-      font-weight: 600;
       cursor: pointer;
-      transition: all 0.3s ease;
+      font-weight: 600;
+      transition: all 0.3s;
     }
 
     .btn-cancelar-modal {
@@ -943,29 +1049,43 @@ interface Apartamento {
     }
 
     .btn-confirmar {
-      background: #4CAF50;
+      background: #667eea;
       color: white;
     }
 
     .btn-confirmar:hover {
-      background: #45a049;
+      background: #5568d3;
+      transform: translateY(-2px);
     }
 
+    /* RESPONSIVO */
     @media (max-width: 768px) {
       .grid {
         grid-template-columns: 1fr;
       }
-      
+
       .botoes-acoes {
-        flex-direction: column;
-      }
-      
-      .btn-acao {
-        width: 100%;
+        grid-template-columns: 1fr;
       }
 
       .modal-content {
-        min-width: 90%;
+        padding: 20px;
+        max-width: 95%;
+      }
+
+      .header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .header h1 {
+        font-size: 1.5em;
+        margin-bottom: 10px;
+      }
+
+      .btn-voltar {
+        width: 100%;
+        margin-top: 10px;
       }
     }
   `]
@@ -1018,6 +1138,14 @@ export class ReservaDetalhesApp implements OnInit {
   transferenciaImediata = true;
   motivoTransferencia = '';
 
+  // CHECK-IN
+  modalCheckin = false;
+  observacoesCheckin = '';
+  mensagemAniversariante = false;
+  isAniversariante = false;
+  tipoDocumentoFinalizado: 'recibo' | 'fatura' | null = null;
+  valorAPagarFinalizado = 0;
+
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
@@ -1036,6 +1164,7 @@ export class ReservaDetalhesApp implements OnInit {
         this.reserva = data;
         this.loading = false;
         console.log('✅ Reserva carregada:', data);
+        this.verificarAniversariante();
       },
       error: (err: any) => {
         console.error('❌ Erro:', err);
@@ -1043,6 +1172,18 @@ export class ReservaDetalhesApp implements OnInit {
         this.loading = false;
       }
     });
+  }
+
+  verificarAniversariante(): void {
+    if (!this.reserva?.cliente?.dataNascimento) {
+      this.isAniversariante = false;
+      return;
+    }
+
+    const hoje = new Date();
+    const dataNasc = new Date(this.reserva.cliente.dataNascimento);
+    
+    this.isAniversariante = hoje.getMonth() === dataNasc.getMonth();
   }
 
   voltar(): void {
@@ -1070,6 +1211,503 @@ export class ReservaDetalhesApp implements OnInit {
     if (!this.reserva?.status) return 'status-ativa';
     return 'status-' + this.reserva.status.toLowerCase();
   }
+
+  dataAtualCompleta(): string {
+    return new Date().toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  dataAtualSimples(): string {
+    return new Date().toLocaleDateString('pt-BR');
+  }
+
+  formatarDataCompleta(data: any): string {
+    if (!data) return '-';
+    const d = new Date(data);
+    return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  formatarCPF(cpf: any): string {
+    if (!cpf) return '';
+    const apenasNumeros = cpf.replace(/\D/g, '');
+    return apenasNumeros.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+  }
+
+  // ============= CHECK-IN =============
+  abrirModalCheckin(): void {
+    this.observacoesCheckin = this.reserva?.observacoes || '';
+    this.mensagemAniversariante = this.isAniversariante;
+    this.modalCheckin = true;
+  }
+
+  fecharModalCheckin(): void {
+    this.modalCheckin = false;
+  }
+
+  gerarDocumentoCheckin(): void {
+    if (!this.reserva) return;
+    
+    this.fecharModalCheckin();
+    
+    const htmlImpressao = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Fatura Check-in - Reserva #${this.reserva.id}</title>
+        <style>
+          @page { size: 80mm auto; margin: 0; }
+          body { 
+            font-family: 'Courier New', monospace; 
+            font-size: 12px; 
+            width: 80mm; 
+            margin: 0; 
+            padding: 5mm;
+          }
+          .cabecalho { text-align: center; margin-bottom: 10px; }
+          .cabecalho h1 { font-size: 18px; margin: 0; letter-spacing: 2px; }
+          .cnpj, .endereco { font-size: 11px; margin: 2px 0; }
+          .separador { text-align: center; margin: 8px 0; font-size: 10px; }
+          .titulo-documento { text-align: center; margin: 10px 0; }
+          .titulo-documento h2 { font-size: 14px; margin: 0; }
+          .numero-reserva { font-size: 13px; font-weight: bold; margin: 5px 0; }
+          .data-emissao { font-size: 10px; margin: 2px 0; }
+          .secao { margin: 10px 0; }
+          .secao h3 { font-size: 12px; margin: 0 0 8px 0; text-decoration: underline; }
+          .secao p { margin: 4px 0; font-size: 11px; line-height: 1.4; }
+          .valores { text-align: center; }
+          .valor-destaque { font-size: 14px; font-weight: bold; margin: 5px 0 10px 0; }
+          .valor-total { font-size: 16px; font-weight: bold; margin: 5px 0; }
+          .aniversariante { text-align: center; background: black; color: white; padding: 8px; margin: 10px 0; font-weight: bold; }
+          .observacoes { margin: 10px 0; padding: 8px; border: 1px solid #000; }
+          .observacoes h3 { font-size: 11px; margin: 0 0 5px 0; }
+          .observacoes p { font-size: 10px; margin: 0; white-space: pre-wrap; }
+          .assinatura { margin-top: 20px; text-align: center; }
+          .texto-assinatura { font-size: 10px; margin: 2px 0; }
+          .linha-assinatura { border-top: 1px solid #000; margin: 15px 10px 5px 10px; }
+          .label-assinatura { font-size: 10px; margin: 2px 0; }
+          .rodape { text-align: center; margin-top: 15px; font-size: 11px; }
+          .rodape p { margin: 3px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="cabecalho">
+          <h1>HOTEL DI VAN</h1>
+          <p class="cnpj">CNPJ: 07.757.726/0001-12</p>
+          <p class="endereco">Arapiraca - AL</p>
+          <div class="separador">━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+        </div>
+
+        <div class="titulo-documento">
+          <h2>FATURA DE CHECK-IN</h2>
+          <p class="numero-reserva">Reserva Nº ${this.reserva.id}</p>
+          <p class="data-emissao">${this.dataAtualCompleta()}</p>
+        </div>
+
+        <div class="separador">━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+
+        <div class="secao">
+          <h3>DADOS DO HÓSPEDE</h3>
+          <p><strong>Nome:</strong> ${this.reserva.cliente?.nome}</p>
+          <p><strong>Telefone:</strong> ${this.reserva.cliente?.celular || this.reserva.cliente?.telefone || 'Não informado'}</p>
+        </div>
+
+        <div class="separador">- - - - - - - - - - - - - - -</div>
+
+        <div class="secao">
+          <h3>INFORMAÇÕES DA RESERVA</h3>
+          <p><strong>Apartamento:</strong> ${this.reserva.apartamento?.numeroApartamento}</p>
+          <p><strong>Check-in:</strong> ${this.formatarDataCompleta(this.reserva.dataCheckin)}</p>
+          <p><strong>Check-out:</strong> ${this.formatarDataCompleta(this.reserva.dataCheckout)}</p>
+          <p><strong>Diárias:</strong> ${this.reserva.quantidadeDiaria} dia(s)</p>
+          <p><strong>Hóspedes:</strong> ${this.reserva.quantidadeHospede} pessoa(s)</p>
+        </div>
+
+        <div class="separador">- - - - - - - - - - - - - - -</div>
+
+        <div class="secao valores">
+          <p><strong>Valor da Diária:</strong></p>
+          <p class="valor-destaque">R$ ${this.formatarMoeda(this.reserva.valorDiaria)}</p>
+          <p><strong>Total Estimado:</strong></p>
+          <p class="valor-total">R$ ${this.formatarMoeda(this.reserva.totalDiaria)}</p>
+        </div>
+
+        <div class="separador">━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+
+        ${this.isAniversariante && this.mensagemAniversariante ? `
+          <div class="aniversariante">
+            <p>🎉 FELIZ ANIVERSÁRIO! 🎉</p>
+            <p>Desejamos um mês especial!</p>
+          </div>
+        ` : ''}
+
+        ${this.observacoesCheckin ? `
+          <div class="observacoes">
+            <h3>OBSERVAÇÕES:</h3>
+            <p>${this.observacoesCheckin}</p>
+          </div>
+          <div class="separador">━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+        ` : ''}
+
+        <div class="assinatura">
+          <p class="texto-assinatura">Declaro estar ciente das condições</p>
+          <p class="texto-assinatura">da reserva e dos valores cobrados.</p>
+          <div class="linha-assinatura"></div>
+          <p class="label-assinatura">Assinatura do Hóspede</p>
+          <div class="linha-assinatura"></div>
+          <p class="label-assinatura">Data: ____/____/________</p>
+        </div>
+
+        <div class="rodape">
+          <p>Obrigado pela preferência!</p>
+          <p>Tenha uma excelente estadia!</p>
+        </div>
+
+        <script>
+          window.onload = function() {
+            window.print();
+            window.onafterprint = function() {
+              window.close();
+            };
+          };
+        </script>
+      </body>
+      </html>
+    `;
+
+    const janelaImpressao = window.open('', '_blank', 'width=800,height=600');
+    if (janelaImpressao) {
+      janelaImpressao.document.write(htmlImpressao);
+      janelaImpressao.document.close();
+    }
+  }
+
+  // ============= RECIBO =============
+
+  imprimirRecibo(): void {
+  if (!this.reserva) return;
+
+  console.log('📄 Total a pagar:', this.reserva.totalApagar);
+  console.log('📄 Total recebido:', this.reserva.totalRecebido);
+  console.log('📄 Total hospedagem:', this.reserva.totalHospedagem);
+
+  // ✅ DECISÃO: Se tem saldo > 0, é FATURA. Se não, é RECIBO.
+  const temSaldo = (this.reserva.totalApagar || 0) > 0;
+  
+  if (temSaldo) {
+    console.log('🔸 Gerando FATURA (há saldo a pagar)');
+    this.gerarFatura();
+  } else {
+    console.log('🔸 Gerando RECIBO (tudo pago)');
+    this.gerarRecibo();
+  }
+}
+
+// ============= GERAR RECIBO (PAGO) =============
+gerarRecibo(): void {
+  if (!this.reserva) return;
+
+  const htmlImpressao = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Recibo - Reserva #${this.reserva.id}</title>
+      <style>
+        @page { size: 80mm auto; margin: 0; }
+        body { 
+          font-family: 'Courier New', monospace; 
+          font-size: 12px; 
+          width: 80mm; 
+          margin: 0; 
+          padding: 5mm;
+        }
+        .cabecalho { text-align: center; margin-bottom: 10px; }
+        .cabecalho h1 { font-size: 18px; margin: 0; letter-spacing: 2px; }
+        .cnpj, .endereco { font-size: 11px; margin: 2px 0; }
+        .separador { text-align: center; margin: 8px 0; font-size: 10px; }
+        .titulo-documento { text-align: center; margin: 10px 0; }
+        .titulo-documento h2 { font-size: 14px; margin: 0; }
+        .numero-reserva { font-size: 13px; font-weight: bold; margin: 5px 0; }
+        .data-emissao { font-size: 10px; margin: 2px 0; }
+        .secao { margin: 10px 0; }
+        .secao h3 { font-size: 12px; margin: 0 0 8px 0; text-decoration: underline; }
+        .secao p { margin: 4px 0; font-size: 11px; line-height: 1.4; }
+        .linha-valor { display: flex; justify-content: space-between; margin: 5px 0; font-size: 11px; }
+        .linha-valor.subtotal { font-weight: bold; margin-top: 8px; }
+        .linha-valor.total { font-size: 14px; font-weight: bold; margin: 8px 0; }
+        .declaracao { text-align: center; margin: 15px 0; font-size: 11px; }
+        .declaracao p { margin: 3px 0; }
+        .assinatura { margin-top: 20px; text-align: center; }
+        .linha-assinatura { border-top: 1px solid #000; margin: 15px 20px 5px 20px; }
+        .label-assinatura { font-size: 10px; margin: 2px 0; }
+        .rodape { text-align: center; margin-top: 15px; font-size: 11px; }
+        .rodape p { margin: 3px 0; }
+      </style>
+    </head>
+    <body>
+      <div class="cabecalho">
+        <h1>HOTEL DI VAN</h1>
+        <p class="cnpj">CNPJ: 07.757.726/0001-12</p>
+        <p class="endereco">Arapiraca - AL</p>
+        <div class="separador">━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+      </div>
+
+      <div class="titulo-documento">
+        <h2>RECIBO DE PAGAMENTO</h2>
+        <p class="numero-reserva">Reserva Nº ${this.reserva.id}</p>
+        <p class="data-emissao">${this.dataAtualCompleta()}</p>
+      </div>
+
+      <div class="separador">━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+
+      <div class="secao">
+        <h3>DADOS DO HÓSPEDE</h3>
+        <p><strong>Nome:</strong> ${this.reserva.cliente?.nome}</p>
+        <p><strong>CPF:</strong> ${this.formatarCPF(this.reserva.cliente?.cpf)}</p>
+        <p><strong>Telefone:</strong> ${this.reserva.cliente?.celular || this.reserva.cliente?.telefone || 'Não informado'}</p>
+      </div>
+
+      <div class="separador">- - - - - - - - - - - - - - -</div>
+
+      <div class="secao">
+        <h3>PERÍODO DA HOSPEDAGEM</h3>
+        <p><strong>Apartamento:</strong> ${this.reserva.apartamento?.numeroApartamento}</p>
+        <p><strong>Check-in:</strong> ${this.formatarDataCompleta(this.reserva.dataCheckin)}</p>
+        <p><strong>Check-out:</strong> ${this.formatarDataCompleta(this.reserva.dataCheckout)}</p>
+        <p><strong>Total de Diárias:</strong> ${this.reserva.quantidadeDiaria} dia(s)</p>
+        <p><strong>Hóspedes:</strong> ${this.reserva.quantidadeHospede} pessoa(s)</p>
+      </div>
+
+      <div class="separador">━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+
+      <div class="secao">
+        <h3>DISCRIMINAÇÃO DE VALORES</h3>
+        <div class="linha-valor">
+          <span>Diárias (${this.reserva.quantidadeDiaria}x):</span>
+          <span>R$ ${this.formatarMoeda(this.reserva.totalDiaria)}</span>
+        </div>
+        <div class="linha-valor">
+          <span>Consumo:</span>
+          <span>R$ ${this.formatarMoeda(this.reserva.totalProduto || 0)}</span>
+        </div>
+        ${(this.reserva.desconto || 0) > 0 ? `
+          <div class="linha-valor">
+            <span>Desconto:</span>
+            <span>- R$ ${this.formatarMoeda(this.reserva.desconto)}</span>
+          </div>
+        ` : ''}
+        <div class="separador">━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+        <div class="linha-valor total">
+          <span>TOTAL PAGO:</span>
+          <span>R$ ${this.formatarMoeda(this.reserva.totalHospedagem)}</span>
+        </div>
+      </div>
+
+      <div class="separador">━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+
+      <div class="declaracao">
+        <p>Recebi(emos) de ${this.reserva.cliente?.nome}</p>
+        <p>a importância de <strong>R$ ${this.formatarMoeda(this.reserva.totalHospedagem)}</strong></p>
+        <p>referente à hospedagem no período citado.</p>
+      </div>
+
+      <div class="assinatura">
+        <div class="linha-assinatura"></div>
+        <p class="label-assinatura">Hotel Di Van</p>
+        <p class="label-assinatura">Data: ${this.dataAtualSimples()}</p>
+      </div>
+
+      <div class="rodape">
+        <p>Obrigado pela preferência!</p>
+        <p>Volte sempre!</p>
+      </div>
+
+      <script>
+        window.onload = function() {
+          console.log('Imprimindo RECIBO');
+          window.print();
+          window.onafterprint = function() {
+            window.close();
+          };
+        };
+      </script>
+    </body>
+    </html>
+  `;
+
+  const janelaImpressao = window.open('', '_blank', 'width=800,height=600');
+  if (janelaImpressao) {
+    janelaImpressao.document.write(htmlImpressao);
+    janelaImpressao.document.close();
+  }
+}
+
+// ============= GERAR FATURA (A PAGAR) =============
+gerarFatura(): void {
+  if (!this.reserva) return;
+
+  const htmlImpressao = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Fatura - Reserva #${this.reserva.id}</title>
+      <style>
+        @page { size: 80mm auto; margin: 0; }
+        body { 
+          font-family: 'Courier New', monospace; 
+          font-size: 12px; 
+          width: 80mm; 
+          margin: 0; 
+          padding: 5mm;
+        }
+        .cabecalho { text-align: center; margin-bottom: 10px; }
+        .cabecalho h1 { font-size: 18px; margin: 0; letter-spacing: 2px; }
+        .cnpj, .endereco { font-size: 11px; margin: 2px 0; }
+        .separador { text-align: center; margin: 8px 0; font-size: 10px; }
+        .titulo-documento { text-align: center; margin: 10px 0; }
+        .titulo-documento h2 { font-size: 14px; margin: 0; }
+        .numero-reserva { font-size: 13px; font-weight: bold; margin: 5px 0; }
+        .data-emissao { font-size: 10px; margin: 2px 0; }
+        .secao { margin: 10px 0; }
+        .secao h3 { font-size: 12px; margin: 0 0 8px 0; text-decoration: underline; }
+        .secao p { margin: 4px 0; font-size: 11px; line-height: 1.4; }
+        .linha-valor { display: flex; justify-content: space-between; margin: 5px 0; font-size: 11px; }
+        .linha-valor.subtotal { font-weight: bold; margin-top: 8px; }
+        .linha-valor.total { font-size: 14px; font-weight: bold; margin: 8px 0; }
+        .declaracao { text-align: center; margin: 15px 0; font-size: 11px; }
+        .declaracao p { margin: 3px 0; }
+        .assinatura { margin-top: 20px; text-align: center; }
+        .linha-assinatura { border-top: 1px solid #000; margin: 15px 20px 5px 20px; }
+        .label-assinatura { font-size: 10px; margin: 2px 0; }
+        .rodape { text-align: center; margin-top: 15px; font-size: 11px; }
+        .rodape p { margin: 3px 0; }
+        .destaque-apagar { background: #000; color: #fff; padding: 8px; text-align: center; margin: 10px 0; }
+      </style>
+    </head>
+    <body>
+      <div class="cabecalho">
+        <h1>HOTEL DI VAN</h1>
+        <p class="cnpj">CNPJ: 07.757.726/0001-12</p>
+        <p class="endereco">Arapiraca - AL</p>
+        <div class="separador">━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+      </div>
+
+      <div class="titulo-documento">
+        <h2>FATURA - PAGAMENTO FATURADO</h2>
+        <p class="numero-reserva">Reserva Nº ${this.reserva.id}</p>
+        <p class="data-emissao">${this.dataAtualCompleta()}</p>
+      </div>
+
+      <div class="separador">━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+
+      <div class="secao">
+        <h3>DADOS DO HÓSPEDE</h3>
+        <p><strong>Nome:</strong> ${this.reserva.cliente?.nome}</p>
+        <p><strong>CPF:</strong> ${this.formatarCPF(this.reserva.cliente?.cpf)}</p>
+        <p><strong>Telefone:</strong> ${this.reserva.cliente?.celular || this.reserva.cliente?.telefone || 'Não informado'}</p>
+      </div>
+
+      <div class="separador">- - - - - - - - - - - - - - -</div>
+
+      <div class="secao">
+        <h3>PERÍODO DA HOSPEDAGEM</h3>
+        <p><strong>Apartamento:</strong> ${this.reserva.apartamento?.numeroApartamento}</p>
+        <p><strong>Check-in:</strong> ${this.formatarDataCompleta(this.reserva.dataCheckin)}</p>
+        <p><strong>Check-out:</strong> ${this.formatarDataCompleta(this.reserva.dataCheckout)}</p>
+        <p><strong>Total de Diárias:</strong> ${this.reserva.quantidadeDiaria} dia(s)</p>
+        <p><strong>Hóspedes:</strong> ${this.reserva.quantidadeHospede} pessoa(s)</p>
+      </div>
+
+      <div class="separador">━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+
+      <div class="secao">
+        <h3>DISCRIMINAÇÃO DE VALORES</h3>
+        <div class="linha-valor">
+          <span>Diárias (${this.reserva.quantidadeDiaria}x):</span>
+          <span>R$ ${this.formatarMoeda(this.reserva.totalDiaria)}</span>
+        </div>
+        <div class="linha-valor">
+          <span>Consumo:</span>
+          <span>R$ ${this.formatarMoeda(this.reserva.totalProduto || 0)}</span>
+        </div>
+        ${(this.reserva.desconto || 0) > 0 ? `
+          <div class="linha-valor">
+            <span>Desconto:</span>
+            <span>- R$ ${this.formatarMoeda(this.reserva.desconto)}</span>
+          </div>
+        ` : ''}
+        <div class="separador">- - - - - - - - - - - - - - -</div>
+        <div class="linha-valor subtotal">
+          <span>Subtotal:</span>
+          <span>R$ ${this.formatarMoeda(this.reserva.totalHospedagem)}</span>
+        </div>
+        ${(this.reserva.totalRecebido || 0) > 0 ? `
+          <div class="linha-valor">
+            <span>Já Recebido:</span>
+            <span>- R$ ${this.formatarMoeda(this.reserva.totalRecebido)}</span>
+          </div>
+        ` : ''}
+        <div class="separador">━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+        <div class="linha-valor total">
+          <span>VALOR A PAGAR:</span>
+          <span>R$ ${this.formatarMoeda(this.reserva.totalApagar)}</span>
+        </div>
+      </div>
+
+      <div class="destaque-apagar">
+        <p style="margin: 0; font-size: 13px; font-weight: bold;">
+          VALOR A PAGAR: R$ ${this.formatarMoeda(this.reserva.totalApagar)}
+        </p>
+      </div>
+
+      <div class="separador">━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+
+      <div class="declaracao">
+        <p>O Sr(a). ${this.reserva.cliente?.nome}</p>
+        <p>deverá pagar a importância de</p>
+        <p><strong>R$ ${this.formatarMoeda(this.reserva.totalApagar)}</strong></p>
+        <p>referente à hospedagem no período citado.</p>
+      </div>
+
+      <div class="assinatura">
+        <div class="linha-assinatura"></div>
+        <p class="label-assinatura">Assinatura do Hóspede</p>
+        <div class="linha-assinatura"></div>
+        <p class="label-assinatura">Hotel Di Van</p>
+        <p class="label-assinatura">Data: ${this.dataAtualSimples()}</p>
+      </div>
+
+      <div class="rodape">
+        <p>Esta fatura deverá ser paga</p>
+        <p>conforme acordado.</p>
+      </div>
+
+      <script>
+        window.onload = function() {
+          console.log('Imprimindo FATURA - Valor a pagar: R$ ${this.formatarMoeda(this.reserva!.totalApagar)}');
+          window.print();
+          window.onafterprint = function() {
+            window.close();
+          };
+        };
+      </script>
+    </body>
+    </html>
+  `;
+
+  const janelaImpressao = window.open('', '_blank', 'width=800,height=600');
+  if (janelaImpressao) {
+    janelaImpressao.document.write(htmlImpressao);
+    janelaImpressao.document.close();
+  }
+}
 
   // ============= ALTERAR CHECKOUT =============
   abrirModalAlterarCheckout(): void {
@@ -1101,7 +1739,7 @@ export class ReservaDetalhesApp implements OnInit {
     }
 
     const params: any = {
-      novaDataCheckout: this.novaDataCheckout + 'T12:00:00'
+      novaDataCheckout: this.novaDataCheckout + 'T13:00:00'
     };
 
     if (this.motivoAlteracaoCheckout.trim()) {
@@ -1386,26 +2024,380 @@ export class ReservaDetalhesApp implements OnInit {
 
   // ============= FINALIZAR / CANCELAR =============
   finalizarReserva(): void {
-    if (!this.reserva) return;
+  if (!this.reserva) return;
 
-    if ((this.reserva.totalApagar || 0) > 0) {
-      alert(`❌ Não é possível finalizar!\n\nSaldo devedor: R$ ${(this.reserva.totalApagar || 0).toFixed(2)}\n\nQuite o valor antes de finalizar.`);
-      return;
-    }
-
+  // ✅ CAPTURAR O SALDO ANTES DE FINALIZAR (apenas para impressão)
+  const saldoAntesDeFinalizar = this.reserva.totalApagar || 0;
+  
+  // Confirmação simples
+  if (saldoAntesDeFinalizar > 0) {
+    const confirmacao = confirm(
+      `⚠️ ATENÇÃO: Ainda há saldo devedor de R$ ${saldoAntesDeFinalizar.toFixed(2)}\n\n` +
+      `Deseja finalizar mesmo assim?\n\n` +
+      `Será gerada uma FATURA com o valor a pagar.`
+    );
+    
+    if (!confirmacao) return;
+  } else {
     const confirmacao = confirm('✅ Confirma a finalização da reserva?\n\nO apartamento ficará em status LIMPEZA.');
     if (!confirmacao) return;
-
-    this.http.patch(`http://localhost:8080/api/reservas/${this.reserva.id}/finalizar`, {}).subscribe({
-      next: () => {
-        alert('✅ Reserva finalizada com sucesso!');
-        this.carregarReserva(this.reserva!.id);
-      },
-      error: (err: any) => {
-        alert('❌ Erro: ' + (err.error?.message || err.message));
-      }
-    });
   }
+
+  // ✅ FINALIZAR NO BACKEND (SEM ENVIAR NADA ALÉM DO QUE ENVIAVA ANTES)
+  this.http.patch(`http://localhost:8080/api/reservas/${this.reserva.id}/finalizar`, {}).subscribe({
+    next: () => {
+      alert('✅ Reserva finalizada com sucesso!');
+      
+      // ✅ RECARREGAR RESERVA
+      this.carregarReserva(this.reserva!.id);
+      
+      // ✅ OFERECER IMPRESSÃO
+      setTimeout(() => {
+        const temSaldo = saldoAntesDeFinalizar > 0;
+        const tipoDoc = temSaldo ? 'FATURA' : 'RECIBO';
+        
+        const imprimirDoc = confirm(`📄 Deseja imprimir ${temSaldo ? 'a' : 'o'} ${tipoDoc} agora?`);
+        
+        if (imprimirDoc) {
+          if (temSaldo) {
+            // Imprimir FATURA com o saldo capturado
+            this.imprimirFaturaFinalizada(saldoAntesDeFinalizar);
+          } else {
+            // Imprimir RECIBO
+            this.gerarRecibo();
+          }
+        }
+      }, 500);
+    },
+    error: (err: any) => {
+      alert('❌ Erro: ' + (err.error?.message || err.message));
+    }
+  });
+}
+
+  imprimirFaturaFinalizada(valorAPagar: number): void {
+  if (!this.reserva) return;
+
+  console.log('📄 Imprimindo FATURA com valor a pagar:', valorAPagar);
+
+  const htmlImpressao = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Fatura - Reserva #${this.reserva.id}</title>
+      <style>
+        @page { size: 80mm auto; margin: 0; }
+        body { 
+          font-family: 'Courier New', monospace; 
+          font-size: 12px; 
+          width: 80mm; 
+          margin: 0; 
+          padding: 5mm;
+        }
+        .cabecalho { text-align: center; margin-bottom: 10px; }
+        .cabecalho h1 { font-size: 18px; margin: 0; letter-spacing: 2px; }
+        .cnpj, .endereco { font-size: 11px; margin: 2px 0; }
+        .separador { text-align: center; margin: 8px 0; font-size: 10px; }
+        .titulo-documento { text-align: center; margin: 10px 0; }
+        .titulo-documento h2 { font-size: 14px; margin: 0; }
+        .numero-reserva { font-size: 13px; font-weight: bold; margin: 5px 0; }
+        .data-emissao { font-size: 10px; margin: 2px 0; }
+        .secao { margin: 10px 0; }
+        .secao h3 { font-size: 12px; margin: 0 0 8px 0; text-decoration: underline; }
+        .secao p { margin: 4px 0; font-size: 11px; line-height: 1.4; }
+        .linha-valor { display: flex; justify-content: space-between; margin: 5px 0; font-size: 11px; }
+        .linha-valor.subtotal { font-weight: bold; margin-top: 8px; }
+        .linha-valor.total { font-size: 14px; font-weight: bold; margin: 8px 0; }
+        .declaracao { text-align: center; margin: 15px 0; font-size: 11px; }
+        .declaracao p { margin: 3px 0; }
+        .assinatura { margin-top: 20px; text-align: center; }
+        .linha-assinatura { border-top: 1px solid #000; margin: 15px 20px 5px 20px; }
+        .label-assinatura { font-size: 10px; margin: 2px 0; }
+        .rodape { text-align: center; margin-top: 15px; font-size: 11px; }
+        .rodape p { margin: 3px 0; }
+        .destaque-apagar { background: #000; color: #fff; padding: 8px; text-align: center; margin: 10px 0; }
+      </style>
+    </head>
+    <body>
+      <div class="cabecalho">
+        <h1>HOTEL DI VAN</h1>
+        <p class="cnpj">CNPJ: 07.757.726/0001-12</p>
+        <p class="endereco">Arapiraca - AL</p>
+        <div class="separador">━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+      </div>
+
+      <div class="titulo-documento">
+        <h2>FATURA - PAGAMENTO FATURADO</h2>
+        <p class="numero-reserva">Reserva Nº ${this.reserva.id}</p>
+        <p class="data-emissao">${this.dataAtualCompleta()}</p>
+      </div>
+
+      <div class="separador">━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+
+      <div class="secao">
+        <h3>DADOS DO HÓSPEDE</h3>
+        <p><strong>Nome:</strong> ${this.reserva.cliente?.nome}</p>
+        <p><strong>CPF:</strong> ${this.formatarCPF(this.reserva.cliente?.cpf)}</p>
+        <p><strong>Telefone:</strong> ${this.reserva.cliente?.celular || this.reserva.cliente?.telefone || 'Não informado'}</p>
+      </div>
+
+      <div class="separador">- - - - - - - - - - - - - - -</div>
+
+      <div class="secao">
+        <h3>PERÍODO DA HOSPEDAGEM</h3>
+        <p><strong>Apartamento:</strong> ${this.reserva.apartamento?.numeroApartamento}</p>
+        <p><strong>Check-in:</strong> ${this.formatarDataCompleta(this.reserva.dataCheckin)}</p>
+        <p><strong>Check-out:</strong> ${this.formatarDataCompleta(this.reserva.dataCheckout)}</p>
+        <p><strong>Total de Diárias:</strong> ${this.reserva.quantidadeDiaria} dia(s)</p>
+        <p><strong>Hóspedes:</strong> ${this.reserva.quantidadeHospede} pessoa(s)</p>
+      </div>
+
+      <div class="separador">━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+
+      <div class="secao">
+        <h3>DISCRIMINAÇÃO DE VALORES</h3>
+        <div class="linha-valor">
+          <span>Diárias (${this.reserva.quantidadeDiaria}x):</span>
+          <span>R$ ${this.formatarMoeda(this.reserva.totalDiaria)}</span>
+        </div>
+        <div class="linha-valor">
+          <span>Consumo:</span>
+          <span>R$ ${this.formatarMoeda(this.reserva.totalProduto || 0)}</span>
+        </div>
+        ${(this.reserva.desconto || 0) > 0 ? `
+          <div class="linha-valor">
+            <span>Desconto:</span>
+            <span>- R$ ${this.formatarMoeda(this.reserva.desconto)}</span>
+          </div>
+        ` : ''}
+        <div class="separador">- - - - - - - - - - - - - - -</div>
+        <div class="linha-valor subtotal">
+          <span>Subtotal:</span>
+          <span>R$ ${this.formatarMoeda(this.reserva.totalHospedagem)}</span>
+        </div>
+        ${(this.reserva.totalRecebido || 0) > 0 ? `
+          <div class="linha-valor">
+            <span>Já Recebido:</span>
+            <span>- R$ ${this.formatarMoeda(this.reserva.totalRecebido)}</span>
+          </div>
+        ` : ''}
+        <div class="separador">━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+        <div class="linha-valor total">
+          <span>VALOR A PAGAR:</span>
+          <span>R$ ${this.formatarMoeda(valorAPagar)}</span>
+        </div>
+      </div>
+
+      <div class="destaque-apagar">
+        <p style="margin: 0; font-size: 13px; font-weight: bold;">
+          VALOR A PAGAR: R$ ${this.formatarMoeda(valorAPagar)}
+        </p>
+      </div>
+
+      <div class="separador">━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+
+      <div class="declaracao">
+        <p>O Sr(a). ${this.reserva.cliente?.nome}</p>
+        <p>deverá pagar a importância de</p>
+        <p><strong>R$ ${this.formatarMoeda(valorAPagar)}</strong></p>
+        <p>referente à hospedagem no período citado.</p>
+      </div>
+
+      <div class="assinatura">
+        <div class="linha-assinatura"></div>
+        <p class="label-assinatura">Assinatura do Hóspede</p>
+        <div class="linha-assinatura"></div>
+        <p class="label-assinatura">Hotel Di Van</p>
+        <p class="label-assinatura">Data: ${this.dataAtualSimples()}</p>
+      </div>
+
+      <div class="rodape">
+        <p>Esta fatura deverá ser paga</p>
+        <p>conforme acordado.</p>
+      </div>
+
+      <script>
+        window.onload = function() {
+          window.print();
+          window.onafterprint = function() {
+            window.close();
+          };
+        };
+      </script>
+    </body>
+    </html>
+  `;
+
+  const janelaImpressao = window.open('', '_blank', 'width=800,height=600');
+  if (janelaImpressao) {
+    janelaImpressao.document.write(htmlImpressao);
+    janelaImpressao.document.close();
+  }
+}
+
+
+  
+// ============= GERAR FATURA COM VALOR ESPECÍFICO =============
+gerarFaturaComValor(valorAPagar: number): void {
+  if (!this.reserva) return;
+
+  const htmlImpressao = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Fatura - Reserva #${this.reserva.id}</title>
+      <style>
+        @page { size: 80mm auto; margin: 0; }
+        body { 
+          font-family: 'Courier New', monospace; 
+          font-size: 12px; 
+          width: 80mm; 
+          margin: 0; 
+          padding: 5mm;
+        }
+        .cabecalho { text-align: center; margin-bottom: 10px; }
+        .cabecalho h1 { font-size: 18px; margin: 0; letter-spacing: 2px; }
+        .cnpj, .endereco { font-size: 11px; margin: 2px 0; }
+        .separador { text-align: center; margin: 8px 0; font-size: 10px; }
+        .titulo-documento { text-align: center; margin: 10px 0; }
+        .titulo-documento h2 { font-size: 14px; margin: 0; }
+        .numero-reserva { font-size: 13px; font-weight: bold; margin: 5px 0; }
+        .data-emissao { font-size: 10px; margin: 2px 0; }
+        .secao { margin: 10px 0; }
+        .secao h3 { font-size: 12px; margin: 0 0 8px 0; text-decoration: underline; }
+        .secao p { margin: 4px 0; font-size: 11px; line-height: 1.4; }
+        .linha-valor { display: flex; justify-content: space-between; margin: 5px 0; font-size: 11px; }
+        .linha-valor.subtotal { font-weight: bold; margin-top: 8px; }
+        .linha-valor.total { font-size: 14px; font-weight: bold; margin: 8px 0; }
+        .declaracao { text-align: center; margin: 15px 0; font-size: 11px; }
+        .declaracao p { margin: 3px 0; }
+        .assinatura { margin-top: 20px; text-align: center; }
+        .linha-assinatura { border-top: 1px solid #000; margin: 15px 20px 5px 20px; }
+        .label-assinatura { font-size: 10px; margin: 2px 0; }
+        .rodape { text-align: center; margin-top: 15px; font-size: 11px; }
+        .rodape p { margin: 3px 0; }
+        .destaque-apagar { background: #000; color: #fff; padding: 8px; text-align: center; margin: 10px 0; }
+      </style>
+    </head>
+    <body>
+      <div class="cabecalho">
+        <h1>HOTEL DI VAN</h1>
+        <p class="cnpj">CNPJ: 07.757.726/0001-12</p>
+        <p class="endereco">Arapiraca - AL</p>
+        <div class="separador">━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+      </div>
+
+      <div class="titulo-documento">
+        <h2>FATURA - PAGAMENTO FATURADO</h2>
+        <p class="numero-reserva">Reserva Nº ${this.reserva.id}</p>
+        <p class="data-emissao">${this.dataAtualCompleta()}</p>
+      </div>
+
+      <div class="separador">━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+
+      <div class="secao">
+        <h3>DADOS DO HÓSPEDE</h3>
+        <p><strong>Nome:</strong> ${this.reserva.cliente?.nome}</p>
+        <p><strong>CPF:</strong> ${this.formatarCPF(this.reserva.cliente?.cpf)}</p>
+        <p><strong>Telefone:</strong> ${this.reserva.cliente?.celular || this.reserva.cliente?.telefone || 'Não informado'}</p>
+      </div>
+
+      <div class="separador">- - - - - - - - - - - - - - -</div>
+
+      <div class="secao">
+        <h3>PERÍODO DA HOSPEDAGEM</h3>
+        <p><strong>Apartamento:</strong> ${this.reserva.apartamento?.numeroApartamento}</p>
+        <p><strong>Check-in:</strong> ${this.formatarDataCompleta(this.reserva.dataCheckin)}</p>
+        <p><strong>Check-out:</strong> ${this.formatarDataCompleta(this.reserva.dataCheckout)}</p>
+        <p><strong>Total de Diárias:</strong> ${this.reserva.quantidadeDiaria} dia(s)</p>
+        <p><strong>Hóspedes:</strong> ${this.reserva.quantidadeHospede} pessoa(s)</p>
+      </div>
+
+      <div class="separador">━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+
+      <div class="secao">
+        <h3>DISCRIMINAÇÃO DE VALORES</h3>
+        <div class="linha-valor">
+          <span>Diárias (${this.reserva.quantidadeDiaria}x):</span>
+          <span>R$ ${this.formatarMoeda(this.reserva.totalDiaria)}</span>
+        </div>
+        <div class="linha-valor">
+          <span>Consumo:</span>
+          <span>R$ ${this.formatarMoeda(this.reserva.totalProduto || 0)}</span>
+        </div>
+        ${(this.reserva.desconto || 0) > 0 ? `
+          <div class="linha-valor">
+            <span>Desconto:</span>
+            <span>- R$ ${this.formatarMoeda(this.reserva.desconto)}</span>
+          </div>
+        ` : ''}
+        <div class="separador">- - - - - - - - - - - - - - -</div>
+        <div class="linha-valor subtotal">
+          <span>Subtotal:</span>
+          <span>R$ ${this.formatarMoeda(this.reserva.totalHospedagem)}</span>
+        </div>
+        ${(this.reserva.totalRecebido || 0) > 0 ? `
+          <div class="linha-valor">
+            <span>Já Recebido:</span>
+            <span>- R$ ${this.formatarMoeda(this.reserva.totalRecebido)}</span>
+          </div>
+        ` : ''}
+        <div class="separador">━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+        <div class="linha-valor total">
+          <span>VALOR A PAGAR:</span>
+          <span>R$ ${this.formatarMoeda(valorAPagar)}</span>
+        </div>
+      </div>
+
+      <div class="destaque-apagar">
+        <p style="margin: 0; font-size: 13px; font-weight: bold;">
+          VALOR A PAGAR: R$ ${this.formatarMoeda(valorAPagar)}
+        </p>
+      </div>
+
+      <div class="separador">━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+
+      <div class="declaracao">
+        <p>O Sr(a). ${this.reserva.cliente?.nome}</p>
+        <p>deverá pagar a importância de</p>
+        <p><strong>R$ ${this.formatarMoeda(valorAPagar)}</strong></p>
+        <p>referente à hospedagem no período citado.</p>
+      </div>
+
+      <div class="assinatura">
+        <div class="linha-assinatura"></div>
+        <p class="label-assinatura">Assinatura do Hóspede</p>
+        <div class="linha-assinatura"></div>
+        <p class="label-assinatura">Hotel Di Van</p>
+        <p class="label-assinatura">Data: ${this.dataAtualSimples()}</p>
+      </div>
+
+      <div class="rodape">
+        <p>Esta fatura deverá ser paga</p>
+        <p>conforme acordado.</p>
+      </div>
+
+      <script>
+        window.onload = function() {
+          console.log('Imprimindo FATURA - Valor a pagar: R$ ${this.formatarMoeda(valorAPagar)}');
+          window.print();
+          window.onafterprint = function() {
+            window.close();
+          };
+        };
+      </script>
+    </body>
+    </html>
+  `;
+
+  const janelaImpressao = window.open('', '_blank', 'width=800,height=600');
+  if (janelaImpressao) {
+    janelaImpressao.document.write(htmlImpressao);
+    janelaImpressao.document.close();
+  }
+}
 
   cancelarReserva(): void {
     if (!this.reserva) return;

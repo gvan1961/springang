@@ -1,5 +1,6 @@
 package com.divan.controller;
 
+import com.divan.dto.ClienteDTO;
 import com.divan.dto.ClienteRequestDTO;
 import com.divan.entity.Cliente;
 import com.divan.service.ClienteService;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/clientes")
@@ -59,11 +61,18 @@ public class ClienteController {
         return cliente.map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
     }
     
+   // @GetMapping("/buscar")
+   // public ResponseEntity<List<Cliente>> buscarPorNome(@RequestParam String nome) {
+   //     List<Cliente> clientes = clienteService.buscarPorNome(nome);
+   //     return ResponseEntity.ok(clientes);
+   // }
     @GetMapping("/buscar")
-    public ResponseEntity<List<Cliente>> buscarPorNome(@RequestParam String nome) {
-        List<Cliente> clientes = clienteService.buscarPorNome(nome);
+    public ResponseEntity<List<ClienteDTO>> buscar(@RequestParam String termo) {
+        List<ClienteDTO> clientes = clienteService.buscarPorTermo(termo);
         return ResponseEntity.ok(clientes);
     }
+    
+    
     
     @GetMapping("/empresa/{empresaId}")
     public ResponseEntity<List<Cliente>> buscarPorEmpresa(@PathVariable Long empresaId) {

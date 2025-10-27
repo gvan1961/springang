@@ -55,4 +55,6 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
         LocalDateTime inicio2, LocalDateTime fim2
     );
     
+    Optional<Reserva> findByApartamentoAndStatus(Apartamento apartamento, Reserva.StatusReservaEnum status);
+    
 }

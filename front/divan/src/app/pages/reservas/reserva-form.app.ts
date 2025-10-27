@@ -2,7 +2,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { HttpClient } from '@angular/common/http';  // ✅ ADICIONAR
+import { HttpClient } from '@angular/common/http';
 import { ReservaService } from '../../services/reserva.service';
 import { ClienteService } from '../../services/cliente.service';
 import { ApartamentoService } from '../../services/apartamento.service';
@@ -26,7 +26,7 @@ import { Diaria } from '../../models/diaria.model';
 
       <div class="form-card">
         <form (ngSubmit)="salvar()">
-          <!-- ✅ BUSCA DE CLIENTE -->
+          <!-- BUSCA DE CLIENTE -->
           <div class="form-group campo-busca">
             <label>Cliente *</label>
             
@@ -58,8 +58,8 @@ import { Diaria } from '../../models/diaria.model';
                 (click)="selecionarCliente(cliente)">
                 <div class="resultado-nome">{{ cliente.nome }}</div>
                 <div class="resultado-cpf">CPF: {{ formatarCPF(cliente.cpf) }}</div>
-                <div class="resultado-info" *ngIf="cliente.telefone">
-                  📞 {{ cliente.telefone }}
+                <div class="resultado-info" *ngIf="cliente.celular">
+                  📞 {{ cliente.celular }}
                 </div>
               </div>
             </div>
@@ -249,7 +249,7 @@ import { Diaria } from '../../models/diaria.model';
       font-style: italic;
     }
 
-    /* ✅ ESTILOS DA BUSCA */
+    /* ESTILOS DA BUSCA */
     .campo-busca {
       position: relative;
     }
@@ -492,7 +492,7 @@ export class ReservaFormApp implements OnInit {
   private apartamentoService = inject(ApartamentoService);
   private diariaService = inject(DiariaService);
   private router = inject(Router);
-  private http = inject(HttpClient);  // ✅ ADICIONAR
+  private http = inject(HttpClient);
 
   reserva: ReservaRequest = {
     clienteId: 0,
@@ -502,14 +502,12 @@ export class ReservaFormApp implements OnInit {
     dataCheckout: ''
   };
 
-  clientes: Cliente[] = [];
   apartamentos: Apartamento[] = [];
   apartamentoSelecionado: Apartamento | null = null;
   diarias: Diaria[] = [];
   diariaAplicada: Diaria | null = null;
- 
-  // ✅ BUSCA DE CLIENTES
-  todosClientes: any[] = [];
+  
+  // BUSCA DE CLIENTES
   clientesFiltrados: any[] = [];
   buscaCliente = '';
   mostrarResultados = false;
@@ -523,7 +521,6 @@ export class ReservaFormApp implements OnInit {
 
   ngOnInit(): void {
     console.log('🔵 Inicializando ReservaForm');
-    this.carregarClientes();
     this.carregarApartamentos();
     this.setDatasPadrao();
   }
@@ -534,7 +531,7 @@ export class ReservaFormApp implements OnInit {
     
     const amanha = new Date(hoje);
     amanha.setDate(amanha.getDate() + 1);
-    amanha.setHours(12, 0, 0, 0);
+    amanha.setHours(13, 0, 0, 0);
     
     this.reserva.dataCheckin = this.formatDateTimeLocal(hoje);
     this.reserva.dataCheckout = this.formatDateTimeLocal(amanha);
@@ -562,20 +559,6 @@ export class ReservaFormApp implements OnInit {
     return `${dia}/${mes}/${ano} às ${hora}:${minuto}`;
   }
 
-  // ✅ CARREGAR CLIENTES
-  carregarClientes(): void {
-    this.http.get<any[]>('http://localhost:8080/api/clientes').subscribe({
-      next: (data) => {
-        this.todosClientes = data;
-        this.clientesFiltrados = [];
-        console.log('✅ Clientes carregados:', data.length);
-      },
-      error: (err) => {
-        console.error('❌ Erro ao carregar clientes:', err);
-      }
-    });
-  }
-
   carregarApartamentos(): void {
     console.log('📋 Carregando apartamentos...');
     this.apartamentoService.getDisponiveis().subscribe({
@@ -589,9 +572,9 @@ export class ReservaFormApp implements OnInit {
     });
   }
 
-  // ✅ MÉTODOS DE BUSCA DE CLIENTE
+  // ✅ BUSCA DE CLIENTE - AGORA USANDO O BACKEND
   filtrarClientes(): void {
-    const busca = this.buscaCliente.toLowerCase().trim();
+    const busca = this.buscaCliente.trim();
     
     if (busca.length < 2) {
       this.clientesFiltrados = [];
@@ -599,16 +582,19 @@ export class ReservaFormApp implements OnInit {
       return;
     }
 
-    this.clientesFiltrados = this.todosClientes.filter(cliente => {
-      const nome = (cliente.nome || '').toLowerCase();
-      const cpf = (cliente.cpf || '').replace(/\D/g, '');
-      const buscaSemFormatacao = busca.replace(/\D/g, '');
-      
-      return nome.includes(busca) || cpf.includes(buscaSemFormatacao);
+    // ✅ BUSCA NO BACKEND POR NOME OU CPF
+    this.http.get<any[]>(`http://localhost:8080/api/clientes/buscar?termo=${busca}`).subscribe({
+      next: (data) => {
+        this.clientesFiltrados = data;
+        this.mostrarResultados = true;
+        console.log(`🔍 Busca: "${busca}" - ${data.length} resultados`);
+      },
+      error: (err) => {
+        console.error('❌ Erro na busca:', err);
+        this.clientesFiltrados = [];
+        this.mostrarResultados = false;
+      }
     });
-
-    this.mostrarResultados = true;
-    console.log(`🔍 Busca: "${busca}" - ${this.clientesFiltrados.length} resultados`);
   }
 
   selecionarCliente(cliente: any): void {
@@ -631,10 +617,6 @@ export class ReservaFormApp implements OnInit {
     this.reserva.clienteId = 0;
     this.clientesFiltrados = [];
     this.mostrarResultados = false;
-  }
-
-  onClienteChange(): void {
-    console.log('👤 Cliente selecionado:', this.reserva.clienteId);
   }
 
   onApartamentoChange(): void {

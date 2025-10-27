@@ -1,16 +1,17 @@
 package com.divan.dto;
 
-
 import com.divan.entity.Apartamento;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class ApartamentoResponseDTO {
-    
+
     private Long id;
     private String numeroApartamento;
     private Long tipoApartamentoId;
@@ -20,4 +21,19 @@ public class ApartamentoResponseDTO {
     private String camasDoApartamento;
     private String tv;
     private Apartamento.StatusEnum status;
+    
+    // ✅ ADICIONAR ESTE CAMPO
+    private ReservaAtiva reservaAtiva;
+    
+    // ✅ ADICIONAR ESTA CLASSE INTERNA
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ReservaAtiva {
+        private Long reservaId;
+        private String nomeHospede;
+        private Integer quantidadeHospede;
+        private LocalDateTime dataCheckin;
+        private LocalDateTime dataCheckout;
+    }
 }

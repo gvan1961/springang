@@ -61,6 +61,6 @@ public class Apartamento {
         LIMPEZA,
         PRE_RESERVA,
         MANUTENCAO,
-        INDISPONIVEL
+        INDISPONIVEL        
     }
 }

@@ -11,6 +11,14 @@ export interface Apartamento {
   camasDoApartamento: string;
   tv?: string;
   status?: StatusApartamento;  
+
+  reservaAtiva?: {
+    reservaId: number;
+    nomeHospede: string;
+    quantidadeHospede: number;
+    dataCheckin: string;
+    dataCheckout: string;
+  };
 }
 
 export interface ApartamentoRequest {

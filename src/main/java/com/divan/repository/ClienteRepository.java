@@ -27,4 +27,7 @@ public interface ClienteRepository extends JpaRepository<Cliente, Long> {
     
     @Query("SELECT c FROM Cliente c JOIN c.reservas r WHERE r.apartamento.numeroApartamento = :numeroApartamento")
     List<Cliente> findByApartamento(String numeroApartamento);
+    
+    List<Cliente> findByNomeContainingIgnoreCaseOrCpfContaining(String nome, String cpf);
+    
 }

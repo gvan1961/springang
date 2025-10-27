@@ -18,6 +18,19 @@ import { TipoApartamento } from '../../models/tipo-apartamento.model';
         <button class="btn-back" (click)="voltar()">← Voltar</button>
       </div>
 
+      <button type="submit" class="btn-save" [disabled]="loading || apartamentoOcupado">
+         {{ loading ? 'Salvando...' : (apartamentoOcupado ? 'Bloqueado' : 'Salvar') }}
+      </button>
+
+      <!-- ✅ AVISO SE OCUPADO -->
+    <div *ngIf="apartamentoOcupado" class="warning-ocupado">
+      <div class="warning-icon">🔴</div>
+      <div class="warning-content">
+        <strong>Apartamento OCUPADO</strong>
+        <p>Este apartamento não pode ser editado enquanto estiver ocupado. Finalize a reserva primeiro.</p>
+      </div>
+    </div>
+
       <div class="form-card">
         <form (ngSubmit)="salvar()">
           <div class="form-row">
@@ -199,6 +212,61 @@ import { TipoApartamento } from '../../models/tipo-apartamento.model';
       color: #555;
     }
 
+    /* AVISO DE APARTAMENTO OCUPADO */
+.warning-ocupado {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+  color: white;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+.warning-icon {
+  font-size: 3em;
+  animation: blink 1.5s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.warning-content {
+  flex: 1;
+}
+
+.warning-content strong {
+  display: block;
+  font-size: 1.2em;
+  margin-bottom: 5px;
+}
+
+.warning-content p {
+  margin: 0;
+  opacity: 0.95;
+  font-size: 0.95em;
+}
+
+/* CAMPOS DESABILITADOS */
+input:disabled,
+select:disabled,
+textarea:disabled {
+  background: #f5f5f5;
+  color: #999;
+  cursor: not-allowed;
+  border-color: #e0e0e0;
+}
+
     .error-message {
       background: #fee;
       color: #c33;
@@ -271,6 +339,8 @@ export class ApartamentoFormApp implements OnInit {
   errorMessage = '';
   isEdit = false;
   apartamentoId?: number;
+  statusApartamento?: string;  
+  apartamentoOcupado = false;  
 
   ngOnInit(): void {
     console.log('🔵 Inicializando ApartamentoForm');
@@ -302,33 +372,49 @@ export class ApartamentoFormApp implements OnInit {
   }
 
   carregarApartamento(id: number): void {
-    console.log('📦 Carregando apartamento ID:', id);
-    this.apartamentoService.getById(id).subscribe({
-      next: (data) => {
-        console.log('📥 Dados recebidos do backend:', data);
-        
-        const tipoId = data.tipoApartamento?.id || data.tipoApartamentoId;
-        
-        this.apartamento = {
-          numeroApartamento: data.numeroApartamento,
-          tipoApartamentoId: Number(tipoId),
-          capacidade: Number(data.capacidade),
-          camasDoApartamento: data.camasDoApartamento || '',
-          tv: data.tv || ''
-        };
-        
-        console.log('✅ Apartamento carregado no formulário:', this.apartamento);
-      },
-      error: (err) => {
-        console.error('❌ Erro ao carregar apartamento:', err);
-        this.errorMessage = 'Erro ao carregar apartamento';
+  console.log('📦 Carregando apartamento ID:', id);
+  this.apartamentoService.getById(id).subscribe({
+    next: (data) => {
+      console.log('📥 Dados recebidos do backend:', data);
+      
+      // ✅ VERIFICAR SE ESTÁ OCUPADO
+      this.statusApartamento = data.status;
+      this.apartamentoOcupado = data.status === 'OCUPADO';
+      
+      if (this.apartamentoOcupado) {
+        console.log('🔴 Apartamento OCUPADO - bloqueando edição');
+        this.errorMessage = '⚠️ Este apartamento está OCUPADO e não pode ser editado. Finalize a reserva primeiro.';
       }
-    });
-  }
+      
+      const tipoId = data.tipoApartamento?.id || data.tipoApartamentoId;
+      
+      this.apartamento = {
+        numeroApartamento: data.numeroApartamento,
+        tipoApartamentoId: Number(tipoId),
+        capacidade: Number(data.capacidade),
+        camasDoApartamento: data.camasDoApartamento || '',
+        tv: data.tv || ''
+      };
+      
+      console.log('✅ Apartamento carregado no formulário:', this.apartamento);
+    },
+    error: (err) => {
+      console.error('❌ Erro ao carregar apartamento:', err);
+      this.errorMessage = 'Erro ao carregar apartamento';
+    }
+  });
+}
 
   salvar(): void {
     console.log('💾 Iniciando salvamento...');
     console.log('📝 Estado atual do formulário:', this.apartamento);
+
+    // ✅ BLOQUEAR SALVAMENTO SE OCUPADO
+  if (this.apartamentoOcupado) {
+    this.errorMessage = '⚠️ Não é possível editar apartamento OCUPADO!';
+    alert('⚠️ Não é possível editar apartamento OCUPADO! Finalize a reserva primeiro.');
+    return;
+  }
     
     if (!this.validarFormulario()) {
       console.log('⚠️ Validação falhou');

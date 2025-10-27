@@ -66,6 +66,9 @@ public class Reserva {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal totalProduto = BigDecimal.ZERO;
     
+    @Column(length = 500)
+    private String observacoes;
+    
     @DecimalMin(value = "0.0", message = "Total de hospedagem não pode ser negativo")
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal totalHospedagem = BigDecimal.ZERO;

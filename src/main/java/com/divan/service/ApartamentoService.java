@@ -5,10 +5,14 @@ import com.divan.dto.ApartamentoResponseDTO;
 import com.divan.entity.Apartamento;
 import com.divan.entity.TipoApartamento;
 import com.divan.repository.ApartamentoRepository;
+import com.divan.repository.ReservaRepository;
 import com.divan.repository.TipoApartamentoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import com.divan.entity.Reserva;
+import com.divan.repository.ReservaRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -24,6 +28,9 @@ public class ApartamentoService {
     
     @Autowired
     private TipoApartamentoRepository tipoApartamentoRepository;
+    
+    @Autowired
+    private ReservaRepository reservaRepository;
     
     // =============== MÉTODOS COM DTO ===============
     
@@ -56,6 +63,10 @@ public class ApartamentoService {
         
         Apartamento apartamento = apartamentoRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Apartamento não encontrado"));
+        
+        if (apartamento.getStatus() == Apartamento.StatusEnum.OCUPADO) {
+            throw new RuntimeException("Não é possível editar apartamento OCUPADO. Finalize a reserva primeiro.");
+        }
         
         TipoApartamento tipoApartamento = tipoApartamentoRepository.findById(dto.getTipoApartamentoId())
             .orElseThrow(() -> new RuntimeException("Tipo de apartamento não encontrado"));
@@ -100,6 +111,29 @@ public class ApartamentoService {
         dto.setCamasDoApartamento(apartamento.getCamasDoApartamento());
         dto.setTv(apartamento.getTv());
         dto.setStatus(apartamento.getStatus());
+        
+        // ✅ SE OCUPADO, BUSCAR RESERVA ATIVA
+        if (apartamento.getStatus() == Apartamento.StatusEnum.OCUPADO) {
+            Optional<Reserva> reservaAtiva = reservaRepository
+                .findByApartamentoAndStatus(apartamento, Reserva.StatusReservaEnum.ATIVA);
+            
+            if (reservaAtiva.isPresent()) {
+                Reserva reserva = reservaAtiva.get();
+                
+                ApartamentoResponseDTO.ReservaAtiva dadosReserva = new ApartamentoResponseDTO.ReservaAtiva();
+                dadosReserva.setReservaId(reserva.getId());
+                dadosReserva.setNomeHospede(reserva.getCliente().getNome());
+                dadosReserva.setQuantidadeHospede(reserva.getQuantidadeHospede());
+                dadosReserva.setDataCheckin(reserva.getDataCheckin());
+                dadosReserva.setDataCheckout(reserva.getDataCheckout());
+                
+                dto.setReservaAtiva(dadosReserva);
+                
+                System.out.println("📋 Reserva ativa encontrada no apartamento " + apartamento.getNumeroApartamento() + 
+                                 ": " + reserva.getCliente().getNome());
+            }
+        }
+        
         return dto;
     }
     

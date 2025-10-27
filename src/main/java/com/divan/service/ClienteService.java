@@ -1,5 +1,6 @@
 package com.divan.service;
 
+import com.divan.dto.ClienteDTO;
 import com.divan.entity.Cliente;
 import com.divan.entity.Empresa;
 import com.divan.repository.ClienteRepository;
@@ -8,8 +9,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -38,6 +41,32 @@ public class ClienteService {
         return clienteRepository.save(cliente);
     }
     
+    public List<ClienteDTO> buscarPorTermo(String termo) {
+        List<Cliente> clientes = clienteRepository.findByNomeContainingIgnoreCaseOrCpfContaining(termo, termo);
+        return clientes.stream()
+            .map(this::converterParaDTO)
+            .collect(Collectors.toList());
+    }
+    
+    private ClienteDTO converterParaDTO(Cliente cliente) {
+        ClienteDTO dto = new ClienteDTO();
+        dto.setId(cliente.getId());
+        dto.setNome(cliente.getNome());
+        dto.setCpf(cliente.getCpf());
+        dto.setCelular(cliente.getCelular());
+        
+        // ✅ ADICIONE OUTROS CAMPOS SE EXISTIREM NO DTO
+        // dto.setEmail(cliente.getEmail());
+        // dto.setEndereco(cliente.getEndereco());
+        
+        if (cliente.getEmpresa() != null) {
+            dto.setEmpresaId(cliente.getEmpresa().getId());
+            dto.setEmpresaNome(cliente.getEmpresa().getNomeEmpresa());
+        }
+        
+        return dto;
+    }
+    
     public Cliente atualizar(Long id, Cliente cliente, Long empresaId) {
         Optional<Cliente> clienteExistente = clienteRepository.findById(id);
         if (clienteExistente.isEmpty()) {
@@ -58,6 +87,18 @@ public class ClienteService {
         }
         
         return clienteRepository.save(cliente);
+    }
+    
+    public boolean isAniversarianteDoMes(Long clienteId) {
+        Optional<Cliente> cliente = clienteRepository.findById(clienteId);
+        if (cliente.isEmpty() || cliente.get().getDataNascimento() == null) {
+            return false;
+        }
+        
+        LocalDate hoje = LocalDate.now();
+        LocalDate dataNascimento = cliente.get().getDataNascimento();
+        
+        return dataNascimento.getMonth() == hoje.getMonth();
     }
     
     public void deletar(Long id) {

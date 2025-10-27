@@ -173,6 +173,15 @@ public class ReservaService {
         if (reserva.getQuantidadeHospede() > reserva.getApartamento().getCapacidade()) {
             throw new RuntimeException("Quantidade de hóspedes excede a capacidade do apartamento");
         }
+   
+     // Check-in: 12:00
+        LocalDateTime checkinPadronizado = reserva.getDataCheckin().toLocalDate().atTime(12, 0);
+        // Check-out: 13:00
+        LocalDateTime checkoutPadronizado = reserva.getDataCheckout().toLocalDate().atTime(13, 0);
+        
+        reserva.setDataCheckin(checkinPadronizado);
+        reserva.setDataCheckout(checkoutPadronizado);
+        
         
         // Calcular quantidade de diárias (dias)
         long dias = ChronoUnit.DAYS.between(
