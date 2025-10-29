@@ -1,6 +1,7 @@
 package com.divan.controller;
 
 import com.divan.dto.ItemVendaRequestDTO;
+import com.divan.dto.LancamentoRapidoRequest;
 import com.divan.dto.ReservaDetalhesDTO;
 import com.divan.dto.ReservaRequestDTO;
 import com.divan.dto.ReservaResponseDTO;
@@ -19,11 +20,12 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import com.divan.dto.ReservaDetalhesDTO;
+
+import java.util.Map;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
+
 import java.util.Optional;
 
 @RestController
@@ -250,6 +252,14 @@ public class ReservaController {
             return ResponseEntity.badRequest().body(Map.of("erro", e.getMessage()));
         }
     }
+    
+    @PostMapping("/comandas-rapidas")
+    public ResponseEntity<Map<String, Object>> processarComandasRapidas(@RequestBody LancamentoRapidoRequest request) {
+        System.out.println("🍽️ Recebendo comandas rápidas");
+        Map<String, Object> resultado = reservaService.processarComandasRapidas(request);
+        return ResponseEntity.ok(resultado);
+    }
+
     
            
 }

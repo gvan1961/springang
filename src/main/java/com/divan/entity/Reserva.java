@@ -58,6 +58,7 @@ public class Reserva {
     @Column(nullable = false)
     private Integer quantidadeDiaria;
     
+       
     @DecimalMin(value = "0.0", message = "Total de diária não pode ser negativo")
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal totalDiaria = BigDecimal.ZERO;

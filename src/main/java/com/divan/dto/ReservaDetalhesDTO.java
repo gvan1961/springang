@@ -9,6 +9,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.divan.entity.ExtratoReserva;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -40,8 +42,16 @@ public class ReservaDetalhesDTO {
     private Reserva.StatusReservaEnum status;
     
     // HISTÓRICO E EXTRATOS
-    private List<ExtratoDTO> extratos;
-    private List<HistoricoDTO> historicos;
+//    private List<ExtratoDTO> extratos;
+//    private List<HistoricoDTO> historicos;
+    
+    private BigDecimal desconto;
+    private String observacoes;
+   
+ //   private ClienteSimples cliente;
+ //   private ApartamentoSimples apartamento;
+    private List<ExtratoSimples> extratos;        // ← ESTA LINHA
+    private List<HistoricoSimples> historicos;    // ← ESTA LINHA
     
     // CLASSES INTERNAS PARA DADOS SIMPLIFICADOS
     
@@ -77,6 +87,28 @@ public class ReservaDetalhesDTO {
         private BigDecimal valorUnitario;
         private BigDecimal totalLancamento;
     }
+    
+    @Data
+    public static class ExtratoSimples {
+        private Long id;
+        private LocalDateTime dataHoraLancamento;
+        private String descricao;
+        private ExtratoReserva.StatusLancamentoEnum statusLancamento;
+        private Integer quantidade;
+        private BigDecimal valorUnitario;
+        private BigDecimal totalLancamento;
+        private Long notaVendaId;
+    }
+
+    @Data
+    public static class HistoricoSimples {
+        private Long id;
+        private LocalDateTime dataHora;
+        private String motivo;
+        private Integer quantidadeAnterior;
+        private Integer quantidadeNova;
+    }
+
     
     @Data
     @NoArgsConstructor

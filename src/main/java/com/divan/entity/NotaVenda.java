@@ -1,5 +1,6 @@
 package com.divan.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMin;
@@ -36,7 +37,7 @@ public class NotaVenda {
     
     @ManyToOne
     @JoinColumn(name = "reserva_id")
-    @JsonIgnoreProperties({"notasVenda", "extratos", "historicos"})
+    @JsonIgnore
     private Reserva reserva;
     
     // CORREÇÃO: Mudar de 0.01 para 0.0 para permitir zero temporariamente

@@ -3,12 +3,15 @@ package com.divan.repository;
 import com.divan.entity.Cliente;
 import com.divan.entity.ContaAReceber;
 import com.divan.entity.Empresa;
+import com.divan.entity.Reserva;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ContaAReceberRepository extends JpaRepository<ContaAReceber, Long> {
@@ -31,4 +34,6 @@ public interface ContaAReceberRepository extends JpaRepository<ContaAReceber, Lo
     List<ContaAReceber> findByClienteAndStatus(Cliente cliente, ContaAReceber.StatusContaEnum status);
     
     List<ContaAReceber> findByEmpresaAndStatus(Empresa empresa, ContaAReceber.StatusContaEnum status);
+    
+    Optional<ContaAReceber> findByReserva(Reserva reserva);
 }

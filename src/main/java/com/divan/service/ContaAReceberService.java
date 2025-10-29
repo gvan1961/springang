@@ -19,6 +19,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -87,8 +88,9 @@ public class ContaAReceberService {
         Reserva reserva = reservaRepository.findById(dto.getReservaId())
                 .orElseThrow(() -> new RuntimeException("Reserva não encontrada"));
 
-        // Verificar se já existe conta para esta reserva
-        if (reserva.getContaAReceber() != null) {
+        // ✅ VERIFICAR SE JÁ EXISTE CONTA PARA ESTA RESERVA (CORRETO)
+        Optional<ContaAReceber> contaExistente = contaAReceberRepository.findByReserva(reserva);
+        if (contaExistente.isPresent()) {
             throw new RuntimeException("Já existe uma conta a receber para esta reserva");
         }
 
@@ -115,7 +117,6 @@ public class ContaAReceberService {
         System.out.println("✅ Conta a receber criada: " + conta.getId());
         return converterParaDTO(conta);
     }
-
     // ========== REGISTRAR PAGAMENTO ==========
     
     @Transactional

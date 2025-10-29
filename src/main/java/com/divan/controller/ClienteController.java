@@ -1,6 +1,7 @@
 package com.divan.controller;
 
 import com.divan.dto.ClienteDTO;
+import com.divan.repository.ClienteRepository;
 import com.divan.dto.ClienteRequestDTO;
 import com.divan.entity.Cliente;
 import com.divan.service.ClienteService;
@@ -21,6 +22,9 @@ public class ClienteController {
     
     @Autowired
     private ClienteService clienteService;
+    
+    @Autowired
+    private ClienteRepository clienteRepository;
     
     @PostMapping
     public ResponseEntity<Cliente> criar(@Valid @RequestBody ClienteRequestDTO dto) {
@@ -70,6 +74,28 @@ public class ClienteController {
     public ResponseEntity<List<ClienteDTO>> buscar(@RequestParam String termo) {
         List<ClienteDTO> clientes = clienteService.buscarPorTermo(termo);
         return ResponseEntity.ok(clientes);
+    }
+    
+    @PatchMapping("/{id}/aprovar-credito")
+    public ResponseEntity<Void> aprovarCredito(@PathVariable Long id) {
+        Cliente cliente = clienteRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Cliente não encontrado"));
+        
+        cliente.setCreditoAprovado(true);
+        clienteRepository.save(cliente);
+        
+        return ResponseEntity.ok().build();
+    }
+
+    @PatchMapping("/{id}/revogar-credito")
+    public ResponseEntity<Void> revogarCredito(@PathVariable Long id) {
+        Cliente cliente = clienteRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Cliente não encontrado"));
+        
+        cliente.setCreditoAprovado(false);
+        clienteRepository.save(cliente);
+        
+        return ResponseEntity.ok().build();
     }
     
     

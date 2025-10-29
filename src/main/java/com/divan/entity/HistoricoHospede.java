@@ -1,6 +1,6 @@
 package com.divan.entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -24,7 +24,7 @@ public class HistoricoHospede {
     @NotNull(message = "Reserva é obrigatória")
     @ManyToOne
     @JoinColumn(name = "reserva_id", nullable = false)
-    @JsonIgnoreProperties({"historicos", "extratos", "notasVenda"})
+    @JsonIgnore
     private Reserva reserva;
     
     @NotNull(message = "Data/hora é obrigatória")

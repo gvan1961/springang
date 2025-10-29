@@ -36,6 +36,9 @@ public class Cliente {
     @Column(nullable = false)
     private String celular;
     
+    @Column(name = "credito_aprovado")
+    private Boolean creditoAprovado = false;
+    
     @Column(length = 200)
     private String endereco;
     
