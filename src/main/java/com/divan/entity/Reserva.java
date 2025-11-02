@@ -54,6 +54,8 @@ public class Reserva {
     @Column(nullable = false)
     private LocalDateTime dataCheckout;
     
+    private LocalDateTime dataCheckoutReal;
+    
     @Min(value = 1, message = "Quantidade de diárias deve ser no mínimo 1")
     @Column(nullable = false)
     private Integer quantidadeDiaria;

@@ -6,6 +6,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.divan.dto.ProdutoRequestDTO;
+import com.divan.repository.CategoriaRepository;
+
+import com.divan.entity.Categoria;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -15,6 +20,9 @@ public class ProdutoService {
     
     @Autowired
     private ProdutoRepository produtoRepository;
+    
+    @Autowired
+    private CategoriaRepository categoriaRepository;
     
     public Produto salvar(Produto produto) {
         return produtoRepository.save(produto);
@@ -83,5 +91,62 @@ public class ProdutoService {
     @Transactional(readOnly = true)
     public List<Produto> buscarSemEstoque() {
         return produtoRepository.findProdutosSemEstoque();
+    }
+    
+    public Produto salvarComDTO(ProdutoRequestDTO dto) {
+        System.out.println("════════════════════════════════════");
+        System.out.println("💾 SALVANDO PRODUTO COM DTO");
+        System.out.println("   Nome: " + dto.getNomeProduto());
+        System.out.println("   Categoria ID: " + dto.getCategoriaId());
+        System.out.println("════════════════════════════════════");
+        
+        Produto produto = new Produto();
+        produto.setNomeProduto(dto.getNomeProduto());
+        produto.setQuantidade(dto.getQuantidade());
+        produto.setValorVenda(dto.getValorVenda());
+        produto.setValorCompra(dto.getValorCompra());
+        
+        // ✅ BUSCAR E SETAR A CATEGORIA
+        if (dto.getCategoriaId() != null) {
+            Categoria categoria = categoriaRepository.findById(dto.getCategoriaId())
+                .orElseThrow(() -> new RuntimeException("Categoria não encontrada"));
+            produto.setCategoria(categoria);
+        }
+        
+        Produto salvo = produtoRepository.save(produto);
+        System.out.println("✅ Produto salvo com ID: " + salvo.getId());
+        
+        return salvo;
+    }
+
+    public Produto atualizarComDTO(Long id, ProdutoRequestDTO dto) {
+        System.out.println("════════════════════════════════════");
+        System.out.println("🔄 ATUALIZANDO PRODUTO COM DTO");
+        System.out.println("   ID: " + id);
+        System.out.println("   Nome: " + dto.getNomeProduto());
+        System.out.println("   Categoria ID: " + dto.getCategoriaId());
+        System.out.println("════════════════════════════════════");
+        
+        Produto produto = produtoRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Produto não encontrado"));
+        
+        produto.setNomeProduto(dto.getNomeProduto());
+        produto.setQuantidade(dto.getQuantidade());
+        produto.setValorVenda(dto.getValorVenda());
+        produto.setValorCompra(dto.getValorCompra());
+        
+        // ✅ BUSCAR E SETAR A CATEGORIA
+        if (dto.getCategoriaId() != null) {
+            Categoria categoria = categoriaRepository.findById(dto.getCategoriaId())
+                .orElseThrow(() -> new RuntimeException("Categoria não encontrada"));
+            produto.setCategoria(categoria);
+        } else {
+            produto.setCategoria(null);
+        }
+        
+        Produto atualizado = produtoRepository.save(produto);
+        System.out.println("✅ Produto atualizado com sucesso");
+        
+        return atualizado;
     }
 }
