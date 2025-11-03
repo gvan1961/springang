@@ -71,6 +71,38 @@ public class ReservaService {
     @Autowired
     private ContaAReceberRepository contaAReceberRepository;
      
+    /**
+     * Verifica se existe conflito de datas para o apartamento
+     */
+    private boolean existeConflitoDeDatas(Long apartamentoId, LocalDateTime checkin, LocalDateTime checkout, Long reservaIdExcluir) {
+        List<Reserva> reservasDoApartamento = reservaRepository.findByApartamentoId(apartamentoId);
+        
+        for (Reserva r : reservasDoApartamento) {
+            // Ignorar a própria reserva (para casos de alteração)
+            if (reservaIdExcluir != null && r.getId().equals(reservaIdExcluir)) {
+                continue;
+            }
+            
+            // Ignorar reservas canceladas
+            if (r.getStatus() == Reserva.StatusReservaEnum.CANCELADA) {
+                continue;
+            }
+            
+            // Verificar sobreposição de datas
+            boolean temConflito = 
+                (checkin.isBefore(r.getDataCheckout()) && checkout.isAfter(r.getDataCheckin())) ||
+                (checkin.isEqual(r.getDataCheckin()) || checkout.isEqual(r.getDataCheckout()));
+            
+            if (temConflito) {
+                System.out.println("❌ Conflito encontrado com reserva #" + r.getId());
+                System.out.println("   Reserva existente: " + r.getDataCheckin() + " a " + r.getDataCheckout());
+                System.out.println("   Tentativa: " + checkin + " a " + checkout);
+                return true;
+            }
+        }
+        
+        return false;
+    }
    
     // ============================================
     // ✅ MÉTODOS AUXILIARES PRIVADOS
@@ -181,24 +213,33 @@ public class ReservaService {
     // ============================================
     
     public Reserva criarReserva(Reserva reserva) {
-        // Validar disponibilidade do apartamento
-        if (!reserva.getApartamento().getStatus().equals(Apartamento.StatusEnum.DISPONIVEL)) {
-            throw new RuntimeException("Apartamento não está disponível");
+        System.out.println("═══════════════════════════════════════════");
+        System.out.println("📝 CRIANDO NOVA RESERVA");
+        System.out.println("═══════════════════════════════════════════");
+        
+        // ✅ VERIFICAR CONFLITO DE DATAS (em vez de status do apartamento)
+        boolean temConflito = existeConflitoDeDatas(
+            reserva.getApartamento().getId(),
+            reserva.getDataCheckin(),
+            reserva.getDataCheckout(),
+            null
+        );
+        
+        if (temConflito) {
+            throw new RuntimeException("❌ JÁ EXISTE UMA RESERVA para este apartamento no período selecionado");
         }
         
         // Validar quantidade de hóspedes
         if (reserva.getQuantidadeHospede() > reserva.getApartamento().getCapacidade()) {
             throw new RuntimeException("Quantidade de hóspedes excede a capacidade do apartamento");
         }
-   
-     // Check-in: 12:00
-        LocalDateTime checkinPadronizado = reserva.getDataCheckin().toLocalDate().atTime(12, 0);
-        // Check-out: 13:00
+
+        // Check-in: 14:00, Check-out: 13:00
+        LocalDateTime checkinPadronizado = reserva.getDataCheckin().toLocalDate().atTime(14, 0);
         LocalDateTime checkoutPadronizado = reserva.getDataCheckout().toLocalDate().atTime(13, 0);
         
         reserva.setDataCheckin(checkinPadronizado);
         reserva.setDataCheckout(checkoutPadronizado);
-        
         
         // Calcular quantidade de diárias (dias)
         long dias = ChronoUnit.DAYS.between(
@@ -236,7 +277,35 @@ public class ReservaService {
         reserva.setTotalRecebido(BigDecimal.ZERO);
         reserva.setTotalProduto(BigDecimal.ZERO);
         reserva.setTotalApagar(totalDiaria);
-        reserva.setStatus(Reserva.StatusReservaEnum.ATIVA);
+        
+        // ✅✅✅ DEFINIR STATUS BASEADO NA DATA DE CHECK-IN ✅✅✅
+        LocalDateTime agora = LocalDateTime.now();
+        LocalDateTime dataCheckin = reserva.getDataCheckin();
+        
+        if (dataCheckin.isAfter(agora)) {
+            // ✅ CHECK-IN É FUTURO → PRE_RESERVA
+            reserva.setStatus(Reserva.StatusReservaEnum.PRE_RESERVA);
+            
+            System.out.println("📅 Reserva criada como PRÉ-RESERVA (check-in futuro)");
+            System.out.println("   Check-in: " + dataCheckin.toLocalDate());
+            System.out.println("   ⚠️ Apartamento NÃO será ocupado agora");
+            
+            // ✅ NÃO MUDAR STATUS DO APARTAMENTO
+            // Ele continua no status atual (pode estar ocupado por outra reserva ou disponível)
+            
+        } else {
+            // ✅ CHECK-IN É HOJE OU PASSOU → ATIVA
+            reserva.setStatus(Reserva.StatusReservaEnum.ATIVA);
+            
+            System.out.println("✅ Reserva criada como ATIVA (check-in hoje/passado)");
+            
+            // ✅ Atualizar status do apartamento para OCUPADO
+            Apartamento apartamento = reserva.getApartamento();
+            apartamento.setStatus(Apartamento.StatusEnum.OCUPADO);
+            apartamentoRepository.save(apartamento);
+            
+            System.out.println("   Apartamento " + apartamento.getNumeroApartamento() + " → OCUPADO");
+        }
         
         // Criar nota de venda para consumo
         NotaVenda notaVenda = new NotaVenda();
@@ -252,11 +321,6 @@ public class ReservaService {
         }
         reserva.getNotasVenda().add(notaVenda);
         
-        // Atualizar status do apartamento para OCUPADO
-        Apartamento apartamento = reserva.getApartamento();
-        apartamento.setStatus(Apartamento.StatusEnum.OCUPADO);
-        apartamentoRepository.save(apartamento);
-        
         // Salvar reserva
         Reserva salva = reservaRepository.save(reserva);
         
@@ -269,16 +333,19 @@ public class ReservaService {
         historico.setDataHora(LocalDateTime.now());
         historico.setQuantidadeAnterior(reserva.getQuantidadeHospede());
         historico.setQuantidadeNova(reserva.getQuantidadeHospede());
-        historico.setMotivo(String.format("Reserva criada - %d hóspede(s) - Check-in: %s - Check-out: %s", 
+        historico.setMotivo(String.format("Reserva criada - %d hóspede(s) - Check-in: %s - Check-out: %s - Status: %s", 
             reserva.getQuantidadeHospede(),
             reserva.getDataCheckin().toLocalDate(),
-            reserva.getDataCheckout().toLocalDate()));
+            reserva.getDataCheckout().toLocalDate(),
+            salva.getStatus()));
         
         historicoHospedeRepository.save(historico);
         
-        System.out.println("✅ Reserva criada: " + salva.getId());
+        System.out.println("✅ Reserva criada: #" + salva.getId());
+        System.out.println("   Status: " + salva.getStatus());
         System.out.println("💰 Diária para " + quantidadeHospedes + " hóspede(s): R$ " + valorDiaria);
         System.out.println("📅 Total " + dias + " dia(s): R$ " + totalDiaria);
+        System.out.println("═══════════════════════════════════════════");
         
         return salva;
     }

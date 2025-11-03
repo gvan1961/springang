@@ -104,7 +104,7 @@ public class Reserva {
     private List<NotaVenda> notasVenda;
     
     public enum StatusReservaEnum {
-        ATIVA, CANCELADA, FINALIZADA
+        ATIVA, CANCELADA, FINALIZADA, PRE_RESERVA
     }
 }
 

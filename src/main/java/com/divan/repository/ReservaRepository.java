@@ -15,6 +15,8 @@ import java.util.Optional;
 
 @Repository
 public interface ReservaRepository extends JpaRepository<Reserva, Long> {
+	
+	List<Reserva> findByApartamentoId(Long apartamentoId);
     
     List<Reserva> findByCliente(Cliente cliente);
     
