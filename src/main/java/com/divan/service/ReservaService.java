@@ -58,16 +58,7 @@ public class ReservaService {
     @Autowired
     private HistoricoHospedeRepository historicoHospedeRepository;
     
-    @Autowired
-    private PagamentoRepository pagamentoRepository;   
-    
-    
-    @Autowired
-    private ClienteRepository clienteRepository;    
-    
-    @Autowired
-    private ContaAReceberRepository contaReceberRepository;
-    
+        
     @Autowired
     private ContaAReceberRepository contaAReceberRepository;
      
@@ -1466,6 +1457,154 @@ public class ReservaService {
         resultado.put("sucesso", erros.isEmpty());
         
         return resultado;
+    }
+    
+    @Transactional
+    public void excluirPreReserva(Long id) {
+        System.out.println("═══════════════════════════════════════════");
+        System.out.println("🗑️ EXCLUINDO PRÉ-RESERVA #" + id);
+        System.out.println("═══════════════════════════════════════════");
+        
+        Reserva reserva = reservaRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Reserva não encontrada"));
+        
+        // ✅ VALIDAR: Só pode excluir PRÉ-RESERVA
+        if (reserva.getStatus() != Reserva.StatusReservaEnum.PRE_RESERVA) {
+            throw new RuntimeException("Apenas pré-reservas podem ser excluídas. Use o cancelamento para reservas ativas.");
+        }
+        
+        System.out.println("📋 Dados da pré-reserva:");
+        System.out.println("   Cliente: " + reserva.getCliente().getNome());
+        System.out.println("   Apartamento: " + reserva.getApartamento().getNumeroApartamento());
+        System.out.println("   Check-in: " + reserva.getDataCheckin().toLocalDate());
+        System.out.println("   Check-out: " + reserva.getDataCheckout().toLocalDate());
+        
+        // ✅ VERIFICAR SE APARTAMENTO ESTÁ OCUPADO POR ESTA RESERVA
+        // Como é pré-reserva, o apartamento NÃO deve estar ocupado por ela
+        // Mas vamos verificar para garantir
+        Apartamento apartamento = reserva.getApartamento();
+        System.out.println("🏨 Status atual do apartamento: " + apartamento.getStatus());
+        
+        // ✅ EXCLUIR EXTRATOS RELACIONADOS
+        List<ExtratoReserva> extratos = extratoReservaRepository.findByReservaId(id);
+        if (!extratos.isEmpty()) {
+            System.out.println("🗑️ Removendo " + extratos.size() + " extrato(s)...");
+            extratoReservaRepository.deleteAll(extratos);
+        }
+        
+        // ✅ EXCLUIR HISTÓRICOS RELACIONADOS
+        List<HistoricoHospede> historicos = historicoHospedeRepository.findByReserva(reserva);
+        if (!historicos.isEmpty()) {
+            System.out.println("🗑️ Removendo " + historicos.size() + " histórico(s)...");
+            historicoHospedeRepository.deleteAll(historicos);
+        }
+        
+        // ✅ EXCLUIR NOTAS DE VENDA RELACIONADAS
+        if (reserva.getNotasVenda() != null && !reserva.getNotasVenda().isEmpty()) {
+            System.out.println("🗑️ Removendo " + reserva.getNotasVenda().size() + " nota(s) de venda...");
+            
+            for (NotaVenda nota : reserva.getNotasVenda()) {
+                if (nota.getItens() != null && !nota.getItens().isEmpty()) {
+                    // Devolver produtos ao estoque (se houver consumo)
+                    for (ItemVenda item : nota.getItens()) {
+                        Produto produto = item.getProduto();
+                        produto.setQuantidade(produto.getQuantidade() + item.getQuantidade());
+                        produtoRepository.save(produto);
+                        System.out.println("   ↩️ Devolvendo ao estoque: " + produto.getNomeProduto() + " x" + item.getQuantidade());
+                    }
+                }
+            }
+            
+            notaVendaRepository.deleteAll(reserva.getNotasVenda());
+        }
+        
+        // ✅ EXCLUIR A RESERVA
+        reservaRepository.delete(reserva);
+        
+        System.out.println("✅ Pré-reserva #" + id + " excluída com sucesso!");
+        System.out.println("═══════════════════════════════════════════");
+    }
+    
+    @Transactional
+    public Reserva editarPreReserva(Long id, Long novoApartamentoId, Integer novaQuantidade, 
+                                     LocalDateTime novoCheckin, LocalDateTime novoCheckout) {
+        System.out.println("═══════════════════════════════════════════");
+        System.out.println("✏️ EDITANDO PRÉ-RESERVA #" + id);
+        System.out.println("═══════════════════════════════════════════");
+        
+        Reserva reserva = reservaRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Reserva não encontrada"));
+        
+        // ✅ VALIDAR: Só pode editar PRÉ-RESERVA
+        if (reserva.getStatus() != Reserva.StatusReservaEnum.PRE_RESERVA) {
+            throw new RuntimeException("Apenas pré-reservas podem ser editadas desta forma");
+        }
+        
+        // Buscar novo apartamento (se mudou)
+        Apartamento novoApartamento = apartamentoRepository.findById(novoApartamentoId)
+            .orElseThrow(() -> new RuntimeException("Apartamento não encontrado"));
+        
+        // ✅ VERIFICAR CONFLITO DE DATAS (excluindo esta reserva)
+        boolean temConflito = existeConflitoDeDatas(
+            novoApartamentoId,
+            novoCheckin,
+            novoCheckout,
+            id  // Excluir esta reserva da verificação
+        );
+        
+        if (temConflito) {
+            throw new RuntimeException("Já existe uma reserva para este apartamento no período selecionado");
+        }
+        
+        // Validar capacidade
+        if (novaQuantidade > novoApartamento.getCapacidade()) {
+            throw new RuntimeException("Quantidade de hóspedes excede capacidade do apartamento");
+        }
+        
+        // ✅ ATUALIZAR DADOS
+        boolean mudouApartamento = !reserva.getApartamento().getId().equals(novoApartamentoId);
+        
+        reserva.setApartamento(novoApartamento);
+        reserva.setQuantidadeHospede(novaQuantidade);
+        reserva.setDataCheckin(novoCheckin);
+        reserva.setDataCheckout(novoCheckout);
+        
+        // Recalcular valores
+        recalcularValores(reserva);
+        
+        // ✅ RECRIAR EXTRATOS DE DIÁRIAS
+        // Remover extratos antigos
+        extratoReservaRepository.deleteAll(
+            extratoReservaRepository.findByReservaId(id).stream()
+                .filter(e -> e.getStatusLancamento() == ExtratoReserva.StatusLancamentoEnum.DIARIA)
+                .collect(Collectors.toList())
+        );
+        
+        // Criar novos extratos
+        criarExtratosDiarias(reserva, reserva.getDataCheckin(), reserva.getDataCheckout());
+        
+        Reserva salva = reservaRepository.save(reserva);
+        
+        // Criar histórico
+        HistoricoHospede historico = new HistoricoHospede();
+        historico.setReserva(salva);
+        historico.setDataHora(LocalDateTime.now());
+        historico.setQuantidadeAnterior(novaQuantidade);
+        historico.setQuantidadeNova(novaQuantidade);
+        historico.setMotivo(String.format(
+            "Pré-reserva editada%s - Check-in: %s - Check-out: %s - Hóspedes: %d",
+            mudouApartamento ? " (apartamento alterado)" : "",
+            novoCheckin.toLocalDate(),
+            novoCheckout.toLocalDate(),
+            novaQuantidade
+        ));
+        
+        historicoHospedeRepository.save(historico);
+        
+        System.out.println("✅ Pré-reserva atualizada com sucesso!");
+        System.out.println("═══════════════════════════════════════════");
+        
+        return salva;
     }
 
     

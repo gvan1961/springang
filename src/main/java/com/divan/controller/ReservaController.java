@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 import java.util.Optional;
@@ -258,6 +259,49 @@ public class ReservaController {
         System.out.println("🍽️ Recebendo comandas rápidas");
         Map<String, Object> resultado = reservaService.processarComandasRapidas(request);
         return ResponseEntity.ok(resultado);
+    }
+    
+    @PatchMapping("/{id}/editar-pre-reserva")
+    public ResponseEntity<?> editarPreReserva(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> updates) {
+        try {
+            // ✅ USAR DateTimeFormatter para aceitar múltiplos formatos
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+            
+            String dataCheckinStr = (String) updates.get("dataCheckin");
+            String dataCheckoutStr = (String) updates.get("dataCheckout");
+            
+            // ✅ REMOVER MILISSEGUNDOS E Z SE EXISTIREM
+            dataCheckinStr = dataCheckinStr.replaceAll("\\.\\d{3}Z?$", "");
+            dataCheckoutStr = dataCheckoutStr.replaceAll("\\.\\d{3}Z?$", "");
+            
+            LocalDateTime dataCheckin = LocalDateTime.parse(dataCheckinStr, formatter);
+            LocalDateTime dataCheckout = LocalDateTime.parse(dataCheckoutStr, formatter);
+            
+            Reserva reserva = reservaService.editarPreReserva(
+                id,
+                ((Number) updates.get("apartamentoId")).longValue(),
+                (Integer) updates.get("quantidadeHospede"),
+                dataCheckin,
+                dataCheckout
+            );
+            
+            return ResponseEntity.ok(reserva);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+    
+    @DeleteMapping("/{id}/pre-reserva")
+    public ResponseEntity<?> excluirPreReserva(@PathVariable Long id) {
+        try {
+            reservaService.excluirPreReserva(id);
+            return ResponseEntity.ok(Map.of("message", "Pré-reserva excluída com sucesso"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
     }
 
     

@@ -87,9 +87,14 @@ public class Reserva {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal totalApagar = BigDecimal.ZERO;
     
+   // @Enumerated(EnumType.STRING)
+   // @Column(nullable = false)
+   // private StatusReservaEnum status = StatusReservaEnum.ATIVA;
+    
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private StatusReservaEnum status = StatusReservaEnum.ATIVA;
+    @Column(name = "status", length = 20, nullable = false)
+    private StatusReservaEnum status;
+    
     
     @OneToMany(mappedBy = "reserva", cascade = CascadeType.ALL)
     @JsonIgnoreProperties("reserva")

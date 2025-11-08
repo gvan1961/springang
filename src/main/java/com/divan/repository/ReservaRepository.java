@@ -4,6 +4,8 @@ package com.divan.repository;
 import com.divan.entity.Apartamento;
 import com.divan.entity.Cliente;
 import com.divan.entity.Reserva;
+import com.divan.entity.Reserva.StatusReservaEnum;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -59,4 +61,8 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
     
     Optional<Reserva> findByApartamentoAndStatus(Apartamento apartamento, Reserva.StatusReservaEnum status);
     
+    Optional<Reserva> findFirstByApartamentoAndStatusOrderByDataCheckinDesc(
+            Apartamento apartamento, 
+            StatusReservaEnum status
+        );
 }

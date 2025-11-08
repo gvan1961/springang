@@ -78,9 +78,9 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.PUT, "/api/apartamentos/**").hasAnyAuthority("APARTAMENTO_UPDATE", "ROLE_ADMIN")
                 .requestMatchers(HttpMethod.PATCH, "/api/apartamentos/**").hasAnyAuthority("APARTAMENTO_UPDATE", "ROLE_ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/apartamentos/**").hasAnyAuthority("APARTAMENTO_DELETE", "ROLE_ADMIN")
-                
+                                
                 // ========== TIPOS DE APARTAMENTO ==========
-                .requestMatchers("/api/tipos-apartamento/**").authenticated()
+                //.requestMatchers("/api/tipos-apartamento/**").authenticated()
                 
                 // ========== CLIENTES ==========
                 .requestMatchers(HttpMethod.GET, "/api/clientes/**").hasAnyAuthority("CLIENTE_READ", "ROLE_ADMIN")
@@ -88,6 +88,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.PUT, "/api/clientes/**").hasAnyAuthority("CLIENTE_UPDATE", "ROLE_ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/clientes/**").hasAnyAuthority("CLIENTE_DELETE", "ROLE_ADMIN")
                 
+                             
                 // ========== EMPRESAS ==========
                 .requestMatchers(HttpMethod.GET, "/api/empresas/**").hasAnyAuthority("EMPRESA_READ", "ROLE_ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/empresas").hasAnyAuthority("EMPRESA_CREATE", "ROLE_ADMIN")
@@ -139,6 +140,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/permissoes/**").hasRole("ADMIN")
                 
                 // ========== QUALQUER OUTRA REQUISIÇÃO ==========
+               // .requestMatchers("/api/caixa/**").permitAll()
                 .anyRequest().authenticated()
             );
         

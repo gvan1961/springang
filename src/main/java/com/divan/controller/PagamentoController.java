@@ -28,6 +28,58 @@ public class PagamentoController {
     @Autowired
     private ReservaService reservaService;
     
+    @PostMapping("/pre-reserva")
+    public ResponseEntity<?> processarPagamentoPreReserva(@Valid @RequestBody PagamentoRequestDTO dto) {
+        try {
+            System.out.println("═══════════════════════════════════════");
+            System.out.println("💳 PROCESSAR PAGAMENTO DE PRÉ-RESERVA");
+            System.out.println("═══════════════════════════════════════");
+            System.out.println("Reserva ID: " + dto.getReservaId());
+            System.out.println("Valor: " + dto.getValor());
+            System.out.println("Forma: " + dto.getFormaPagamento());
+            
+            // Buscar reserva
+            Optional<Reserva> reservaOpt = reservaService.buscarPorId(dto.getReservaId());
+            if (reservaOpt.isEmpty()) {
+                System.err.println("❌ Reserva não encontrada: " + dto.getReservaId());
+                return ResponseEntity.badRequest().body("Reserva não encontrada");
+            }
+
+            Reserva reserva = reservaOpt.get();
+            System.out.println("✅ Reserva encontrada: #" + reserva.getId());
+            System.out.println("   Status atual: " + reserva.getStatus());
+            
+            // Verificar se é pré-reserva
+            if (!"PRE_RESERVA".equals(reserva.getStatus().name())) {
+                System.err.println("❌ Reserva não está em PRE_RESERVA");
+                return ResponseEntity.badRequest().body("Reserva não está em status PRÉ-RESERVA");
+            }
+
+            // Criar pagamento
+            Pagamento pagamento = new Pagamento();
+            pagamento.setReserva(reserva);
+            pagamento.setValor(dto.getValor());
+            pagamento.setFormaPagamento(dto.getFormaPagamento());
+            pagamento.setObservacao(dto.getObservacao());
+
+            System.out.println("📤 Chamando service para processar pagamento e ativar...");
+            
+            // Processar pagamento E ativar reserva
+            Pagamento pagamentoProcessado = pagamentoService.processarPagamentoPreReserva(pagamento);
+            
+            System.out.println("✅ Pagamento processado e reserva ativada com sucesso!");
+            System.out.println("═══════════════════════════════════════");
+            
+            return ResponseEntity.status(HttpStatus.CREATED).body(pagamentoProcessado);
+
+        } catch (Exception e) {
+            System.err.println("❌ ERRO ao processar pagamento de pré-reserva: " + e.getMessage());
+            e.printStackTrace();
+            System.out.println("═══════════════════════════════════════");
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+    
     @PostMapping
     public ResponseEntity<?> processarPagamento(@Valid @RequestBody PagamentoRequestDTO dto) {
         try {

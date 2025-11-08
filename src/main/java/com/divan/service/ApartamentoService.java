@@ -22,7 +22,8 @@ import java.util.stream.Collectors;
 @Service
 @Transactional
 public class ApartamentoService {
-    
+	
+	   
     @Autowired
     private ApartamentoRepository apartamentoRepository;
     
@@ -111,29 +112,33 @@ public class ApartamentoService {
         dto.setCamasDoApartamento(apartamento.getCamasDoApartamento());
         dto.setTv(apartamento.getTv());
         dto.setStatus(apartamento.getStatus());
-        
-        // ✅ SE OCUPADO, BUSCAR RESERVA ATIVA
+
+        // ✅✅✅ CORREÇÃO AQUI ✅✅✅
+        // SE OCUPADO, BUSCAR RESERVA ATIVA (pegando a mais recente se houver múltiplas)
         if (apartamento.getStatus() == Apartamento.StatusEnum.OCUPADO) {
             Optional<Reserva> reservaAtiva = reservaRepository
-                .findByApartamentoAndStatus(apartamento, Reserva.StatusReservaEnum.ATIVA);
-            
+                .findFirstByApartamentoAndStatusOrderByDataCheckinDesc(
+                    apartamento, 
+                    Reserva.StatusReservaEnum.ATIVA
+                );
+
             if (reservaAtiva.isPresent()) {
                 Reserva reserva = reservaAtiva.get();
-                
+
                 ApartamentoResponseDTO.ReservaAtiva dadosReserva = new ApartamentoResponseDTO.ReservaAtiva();
                 dadosReserva.setReservaId(reserva.getId());
                 dadosReserva.setNomeHospede(reserva.getCliente().getNome());
                 dadosReserva.setQuantidadeHospede(reserva.getQuantidadeHospede());
                 dadosReserva.setDataCheckin(reserva.getDataCheckin());
                 dadosReserva.setDataCheckout(reserva.getDataCheckout());
-                
+
                 dto.setReservaAtiva(dadosReserva);
-                
-                System.out.println("📋 Reserva ativa encontrada no apartamento " + apartamento.getNumeroApartamento() + 
+
+                System.out.println("📋 Reserva ativa encontrada no apartamento " + apartamento.getNumeroApartamento() +
                                  ": " + reserva.getCliente().getNome());
             }
         }
-        
+
         return dto;
     }
     
