@@ -29,11 +29,12 @@ public class DiariaController {
     
     @GetMapping("/tipo-apartamento/{tipoApartamentoId}")
     public ResponseEntity<List<Diaria>> buscarPorTipoApartamento(@PathVariable Long tipoApartamentoId) {
-        TipoApartamento tipoApartamento = tipoApartamentoRepository.findById(tipoApartamentoId)
-            .orElseThrow(() -> new RuntimeException("Tipo de apartamento não encontrado"));
-        
-        List<Diaria> diarias = diariaRepository.findByTipoApartamentoOrderByQuantidadeAsc(tipoApartamento);
-        return ResponseEntity.ok(diarias);
+        try {
+            List<Diaria> diarias = diariaService.buscarPorTipo(tipoApartamentoId);
+            return ResponseEntity.ok(diarias);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
+        }
     }
     
     

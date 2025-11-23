@@ -10,9 +10,6 @@ import org.hibernate.validator.constraints.br.CPF;
 
 import java.time.LocalDate;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
 public class ClienteRequestDTO {
     
     @NotBlank(message = "Nome é obrigatório")
@@ -37,4 +34,89 @@ public class ClienteRequestDTO {
     
     // APENAS O ID DA EMPRESA, NÃO O OBJETO COMPLETO
     private Long empresaId;
+    
+    private Boolean creditoAprovado;
+
+	public String getNome() {
+		return nome;
+	}
+
+	public void setNome(String nome) {
+		this.nome = nome;
+	}
+
+	public String getCpf() {
+		return cpf;
+	}
+
+	public void setCpf(String cpf) {
+		this.cpf = cpf;
+	}
+
+	public String getCelular() {
+		return celular;
+	}
+
+	public void setCelular(String celular) {
+		this.celular = celular;
+	}
+
+	public String getEndereco() {
+		return endereco;
+	}
+
+	public void setEndereco(String endereco) {
+		this.endereco = endereco;
+	}
+
+	public String getCep() {
+		return cep;
+	}
+
+	public void setCep(String cep) {
+		this.cep = cep;
+	}
+
+	public String getCidade() {
+		return cidade;
+	}
+
+	public void setCidade(String cidade) {
+		this.cidade = cidade;
+	}
+
+	public String getEstado() {
+		return estado;
+	}
+
+	public void setEstado(String estado) {
+		this.estado = estado;
+	}
+
+	public LocalDate getDataNascimento() {
+		return dataNascimento;
+	}
+
+	public void setDataNascimento(LocalDate dataNascimento) {
+		this.dataNascimento = dataNascimento;
+	}
+
+	public Long getEmpresaId() {
+		return empresaId;
+	}
+
+	public void setEmpresaId(Long empresaId) {
+		this.empresaId = empresaId;
+	}
+
+	public Boolean getCreditoAprovado() {
+		return creditoAprovado;
+	}
+
+	public void setCreditoAprovado(Boolean creditoAprovado) {
+		this.creditoAprovado = creditoAprovado;
+	}
+    
+	
+    
 }

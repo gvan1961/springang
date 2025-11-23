@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -36,7 +37,7 @@ public class ApartamentoController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
-    
+  /*  
     // ✅ ATUALIZADO - Retornar DTOs
     @GetMapping
     public ResponseEntity<List<ApartamentoResponseDTO>> listarTodos() {
@@ -52,6 +53,24 @@ public class ApartamentoController {
             return ResponseEntity.ok(apartamento);
         } catch (Exception e) {
             return ResponseEntity.notFound().build();
+        }
+    }
+    */
+    
+    @GetMapping
+    public ResponseEntity<List<ApartamentoResponseDTO>> listarTodos() {
+        System.out.println("═══════════════════════════════════════════");
+        System.out.println("🏠 GET /api/apartamentos - CHEGOU NO CONTROLLER!");
+        System.out.println("═══════════════════════════════════════════");
+        
+        try {
+            List<ApartamentoResponseDTO> apartamentos = apartamentoService.listarTodosDTO();
+            System.out.println("✅ Retornando " + apartamentos.size() + " apartamentos");
+            return ResponseEntity.ok(apartamentos);
+        } catch (Exception e) {
+            System.err.println("❌ ERRO: " + e.getMessage());
+            e.printStackTrace();
+            throw e;
         }
     }
     
@@ -165,6 +184,58 @@ public class ApartamentoController {
             return ResponseEntity.ok(apartamento);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+    
+    @GetMapping("/disponiveis-para-reserva")
+    public ResponseEntity<?> buscarDisponiveisParaReserva(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataCheckin,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataCheckout) {
+        try {
+            List<ApartamentoResponseDTO> disponiveis = apartamentoService
+                .buscarApartamentosDisponiveisParaReservaDTO(dataCheckin, dataCheckout);
+            return ResponseEntity.ok(disponiveis);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("erro", e.getMessage()));
+        }
+    }
+
+    // Verificar disponibilidade de um apartamento específico
+    @GetMapping("/{id}/verificar-disponibilidade")
+    public ResponseEntity<?> verificarDisponibilidade(
+            @PathVariable Long id,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataCheckin,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataCheckout) {
+        try {
+            boolean disponivel = apartamentoService.verificarDisponibilidade(id, dataCheckin, dataCheckout);
+            return ResponseEntity.ok(Map.of(
+                "disponivel", disponivel,
+                "mensagem", disponivel ? "Apartamento disponível" : "Apartamento não disponível"
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("erro", e.getMessage()));
+        }
+    }
+
+    // Buscar apartamentos bloqueados
+    @GetMapping("/bloqueados")
+    public ResponseEntity<?> buscarBloqueados() {
+        try {
+            List<Apartamento> bloqueados = apartamentoService.buscarApartamentosBloqueados();
+            return ResponseEntity.ok(bloqueados);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("erro", e.getMessage()));
+        }
+    }
+
+    // Liberar apartamento (colocar como disponível)
+    @PatchMapping("/{id}/liberar")
+    public ResponseEntity<?> liberarApartamento(@PathVariable Long id) {
+        try {
+            Apartamento apartamento = apartamentoService.liberarApartamento(id);
+            return ResponseEntity.ok(apartamento);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("erro", e.getMessage()));
         }
     }
 }

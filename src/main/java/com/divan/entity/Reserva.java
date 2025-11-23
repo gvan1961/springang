@@ -5,19 +5,18 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 
 @Entity
 @Table(name = "reservas")
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
+//@Data
+//@NoArgsConstructor
+//@AllArgsConstructor
 public class Reserva {
     
     @Id
@@ -87,9 +86,14 @@ public class Reserva {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal totalApagar = BigDecimal.ZERO;
     
+   // @Enumerated(EnumType.STRING)
+   // @Column(nullable = false)
+   // private StatusReservaEnum status = StatusReservaEnum.ATIVA;
+    
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private StatusReservaEnum status = StatusReservaEnum.ATIVA;
+    @Column(name = "status", length = 20, nullable = false)
+    private StatusReservaEnum status;
+    
     
     @OneToMany(mappedBy = "reserva", cascade = CascadeType.ALL)
     @JsonIgnoreProperties("reserva")
@@ -102,10 +106,192 @@ public class Reserva {
     @OneToMany(mappedBy = "reserva", cascade = CascadeType.ALL)
     @JsonIgnoreProperties("reserva")
     private List<NotaVenda> notasVenda;
-    
+         
     public enum StatusReservaEnum {
         ATIVA, CANCELADA, FINALIZADA, PRE_RESERVA
     }
+
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public Apartamento getApartamento() {
+		return apartamento;
+	}
+
+	public void setApartamento(Apartamento apartamento) {
+		this.apartamento = apartamento;
+	}
+
+	public Cliente getCliente() {
+		return cliente;
+	}
+
+	public void setCliente(Cliente cliente) {
+		this.cliente = cliente;
+	}
+
+	public Integer getQuantidadeHospede() {
+		return quantidadeHospede;
+	}
+
+	public void setQuantidadeHospede(Integer quantidadeHospede) {
+		this.quantidadeHospede = quantidadeHospede;
+	}
+
+	public Diaria getDiaria() {
+		return diaria;
+	}
+
+	public void setDiaria(Diaria diaria) {
+		this.diaria = diaria;
+	}
+
+	public LocalDateTime getDataCheckin() {
+		return dataCheckin;
+	}
+
+	public void setDataCheckin(LocalDateTime dataCheckin) {
+		this.dataCheckin = dataCheckin;
+	}
+
+	public LocalDateTime getDataCheckout() {
+		return dataCheckout;
+	}
+
+	public void setDataCheckout(LocalDateTime dataCheckout) {
+		this.dataCheckout = dataCheckout;
+	}
+
+	public LocalDateTime getDataCheckoutReal() {
+		return dataCheckoutReal;
+	}
+
+	public void setDataCheckoutReal(LocalDateTime dataCheckoutReal) {
+		this.dataCheckoutReal = dataCheckoutReal;
+	}
+
+	public Integer getQuantidadeDiaria() {
+		return quantidadeDiaria;
+	}
+
+	public void setQuantidadeDiaria(Integer quantidadeDiaria) {
+		this.quantidadeDiaria = quantidadeDiaria;
+	}
+
+	public BigDecimal getTotalDiaria() {
+		return totalDiaria;
+	}
+
+	public void setTotalDiaria(BigDecimal totalDiaria) {
+		this.totalDiaria = totalDiaria;
+	}
+
+	public BigDecimal getTotalProduto() {
+		return totalProduto;
+	}
+
+	public void setTotalProduto(BigDecimal totalProduto) {
+		this.totalProduto = totalProduto;
+	}
+
+	public String getObservacoes() {
+		return observacoes;
+	}
+
+	public void setObservacoes(String observacoes) {
+		this.observacoes = observacoes;
+	}
+
+	public BigDecimal getTotalHospedagem() {
+		return totalHospedagem;
+	}
+
+	public void setTotalHospedagem(BigDecimal totalHospedagem) {
+		this.totalHospedagem = totalHospedagem;
+	}
+
+	public BigDecimal getTotalRecebido() {
+		return totalRecebido;
+	}
+
+	public void setTotalRecebido(BigDecimal totalRecebido) {
+		this.totalRecebido = totalRecebido;
+	}
+
+	public BigDecimal getDesconto() {
+		return desconto;
+	}
+
+	public void setDesconto(BigDecimal desconto) {
+		this.desconto = desconto;
+	}
+
+	public BigDecimal getTotalApagar() {
+		return totalApagar;
+	}
+
+	public void setTotalApagar(BigDecimal totalApagar) {
+		this.totalApagar = totalApagar;
+	}
+
+	public StatusReservaEnum getStatus() {
+		return status;
+	}
+
+	public void setStatus(StatusReservaEnum status) {
+		this.status = status;
+	}
+
+	public List<ExtratoReserva> getExtratos() {
+		return extratos;
+	}
+
+	public void setExtratos(List<ExtratoReserva> extratos) {
+		this.extratos = extratos;
+	}
+
+	public List<HistoricoHospede> getHistoricos() {
+		return historicos;
+	}
+
+	public void setHistoricos(List<HistoricoHospede> historicos) {
+		this.historicos = historicos;
+	}
+
+	public List<NotaVenda> getNotasVenda() {
+		return notasVenda;
+	}
+
+	public void setNotasVenda(List<NotaVenda> notasVenda) {
+		this.notasVenda = notasVenda;
+	}
+
+	
+	
+	@Override
+	public int hashCode() {
+		return Objects.hash(id);
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		Reserva other = (Reserva) obj;
+		return Objects.equals(id, other.id);
+	}
+    
+	
+    
 }
 
 

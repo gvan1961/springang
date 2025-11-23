@@ -548,9 +548,9 @@ export class ReservaListaApp implements OnInit {
   }
 
   verDetalhes(id: number): void {
-    console.log('🔵 Navegando para detalhes da reserva:', id);
-    this.router.navigate(['/reservas/detalhes', id]);
-  }
+  console.log('🔵 Navegando para detalhes da reserva:', id);
+  this.router.navigate(['/reservas', id]);  // ✅ CORRETO!
+}
 
   confirmarFinalizacao(reserva: ReservaLista): void {
     this.reservaParaFinalizar = reserva;

@@ -147,42 +147,121 @@ interface ApartamentoMapa {
             <p><strong>Check-out:</strong> {{ formatarData(reservaSelecionada.dataCheckout) }}</p>
             <p><strong>Hóspedes:</strong> {{ reservaSelecionada.quantidadeHospede }}</p>
             <p><strong>Status:</strong> <span [class]="'badge-' + reservaSelecionada.status.toLowerCase()">{{ reservaSelecionada.status }}</span></p>
+            
+            <!-- AVISO PARA PRÉ-RESERVA -->
+            <div class="aviso-pre-reserva" *ngIf="reservaSelecionada.status === 'PRE_RESERVA'">
+              ℹ️ Esta é uma pré-reserva. Você pode pagar para ativar, editar ou excluir.
+            </div>
           </div>
 
-         <div *ngIf="!reservaSelecionada" class="modal-info">
-  <p><strong>Apartamento:</strong> {{ apartamentoSelecionado?.numeroApartamento }}</p>
-  <p><strong>Data:</strong> {{ formatarDataSimples(dataSelecionada) }}</p>
-  
-  <div class="alerta-sucesso">
-    <p class="texto-disponivel">✅ Este apartamento está LIVRE nesta data!</p>
-    <p class="texto-info">Você pode criar uma reserva para este dia.</p>
-  </div>
-
-  <div class="info-adicional" *ngIf="apartamentoSelecionado?.status === 'OCUPADO'">
-    <p class="texto-aviso">
-      ℹ️ Embora o apartamento esteja ocupado HOJE, 
-      ele estará disponível na data selecionada.
-    </p>
-  </div>
-</div>
+          <div *ngIf="!reservaSelecionada" class="modal-info">
+            <p><strong>Apartamento:</strong> {{ apartamentoSelecionado?.numeroApartamento }}</p>
+            <p><strong>Data:</strong> {{ formatarDataSimples(dataSelecionada) }}</p>
+            
+            <div class="alerta-sucesso">
+              <p class="texto-disponivel">✅ Este apartamento está LIVRE nesta data!</p>
+              <p class="texto-info">Você pode criar uma reserva para este dia.</p>
+            </div>
+          </div>
 
           <div class="modal-footer">
+            <!-- COLUNA ESQUERDA: Fechar -->
             <button class="btn-cancelar" (click)="fecharModal()">Fechar</button>
             
-            <button *ngIf="reservaSelecionada" 
-                    class="btn-ver-detalhes" 
-                    (click)="verDetalhesReserva()">
-              📋 Ver Detalhes Completos
+            <!-- COLUNA DIREITA: Ações -->
+            <div class="acoes-direita">
+              <!-- ✅ PAGAR E ATIVAR - PRIMEIRO (mais importante para PRE_RESERVA) -->
+              <button *ngIf="reservaSelecionada && reservaSelecionada.status === 'PRE_RESERVA'" 
+                      class="btn-pagar" 
+                      (click)="abrirModalPagamento()">
+                💳 Pagar e Ativar
+              </button>
+              
+              <!-- EDITAR -->
+              <button *ngIf="reservaSelecionada && reservaSelecionada.status === 'PRE_RESERVA'" 
+                      class="btn-editar" 
+                      (click)="editarPreReserva()">
+                ✏️ Editar
+              </button>
+              
+              <!-- EXCLUIR -->
+              <button *ngIf="reservaSelecionada && reservaSelecionada.status === 'PRE_RESERVA'" 
+                      class="btn-excluir" 
+                      (click)="excluirPreReserva()">
+                🗑️ Excluir
+              </button>
+              
+              <!-- VER DETALHES COMPLETOS -->
+              <button *ngIf="reservaSelecionada" 
+                      class="btn-ver-detalhes" 
+                      (click)="verDetalhesReserva()">
+                📋 Detalhes Completos
+              </button>
+              
+              <!-- CRIAR RESERVA (para disponíveis) -->
+              <button *ngIf="!reservaSelecionada && podeReservar()" 
+                      class="btn-criar-reserva" 
+                      (click)="criarNovaReserva()">
+                ➕ Criar Reserva
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL PAGAMENTO PRÉ-RESERVA -->
+      <div class="modal-overlay" *ngIf="modalPagamento" (click)="fecharModalPagamento()">
+        <div class="modal-content" (click)="$event.stopPropagation()">
+          <h2>💳 Pagamento de Pré-Reserva</h2>
+          
+          <div class="info-box" *ngIf="reservaSelecionada">
+            <p><strong>Reserva:</strong> #{{ reservaSelecionada.id }}</p>
+            <p><strong>Cliente:</strong> {{ reservaSelecionada.clienteNome }}</p>
+            <p><strong>Apartamento:</strong> {{ reservaSelecionada.apartamentoNumero }}</p>
+            <p><strong>Check-in:</strong> {{ formatarData(reservaSelecionada.dataCheckin) }}</p>
+            <p><strong>Check-out:</strong> {{ formatarData(reservaSelecionada.dataCheckout) }}</p>
+            <p><strong>Hóspedes:</strong> {{ reservaSelecionada.quantidadeHospede }}</p>
+          </div>
+
+          <div class="aviso-ativacao">
+            ✅ Após o pagamento, a reserva será <strong>ATIVADA</strong> automaticamente e o apartamento ficará <strong>OCUPADO</strong>.
+          </div>
+          
+          <div class="campo">
+            <label>Valor a Pagar *</label>
+            <input type="number" [(ngModel)]="pagPreReservaValor" step="0.01" min="0">
+            <small>Valor total da hospedagem</small>
+          </div>
+
+          <div class="campo">
+            <label>Forma de Pagamento *</label>
+            <select [(ngModel)]="pagPreReservaFormaPagamento">
+              <option value="">Selecione...</option>
+              <option value="DINHEIRO">💵 Dinheiro</option>
+              <option value="PIX">📱 PIX</option>
+              <option value="CARTAO_DEBITO">💳 Cartão Débito</option>
+              <option value="CARTAO_CREDITO">💳 Cartão Crédito</option>
+              <option value="TRANSFERENCIA_BANCARIA">🏦 Transferência</option>
+            </select>
+          </div>
+
+          <div class="campo">
+            <label>Observação</label>
+            <textarea [(ngModel)]="pagPreReservaObs" rows="3" 
+                      placeholder="Observações sobre o pagamento (opcional)..."></textarea>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn-cancelar" (click)="fecharModalPagamento()">
+              Cancelar
             </button>
-            
-            <button *ngIf="!reservaSelecionada && podeReservar()" 
-                    class="btn-criar-reserva" 
-                    (click)="criarNovaReserva()">
-              ➕ Criar Reserva
+            <button class="btn-confirmar-pagamento" (click)="confirmarPagamentoPreReserva()">
+              💳 Confirmar Pagamento
             </button>
           </div>
         </div>
       </div>
+
     </div>
   `,
   styles: [`
@@ -327,6 +406,140 @@ interface ApartamentoMapa {
       padding: 60px;
       background: white;
       border-radius: 12px;
+    }
+
+    .aviso-pre-reserva {
+      background: #e3f2fd;
+      border-left: 4px solid #2196f3;
+      padding: 12px;
+      border-radius: 6px;
+      margin-top: 15px;
+      color: #1976d2;
+      font-weight: 600;
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-top: 25px;
+      padding-top: 20px;
+      border-top: 1px solid #ecf0f1;
+    }
+
+    .acoes-direita {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-cancelar {
+      background: #95a5a6;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+
+    .btn-cancelar:hover {
+      background: #7f8c8d;
+    }
+
+    .btn-excluir {
+      background: #e74c3c;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+
+    .btn-excluir:hover {
+      background: #c0392b;
+      transform: translateY(-2px);
+    }
+
+    .btn-editar {
+      background: #ff9800;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+
+    .btn-editar:hover {
+      background: #f57c00;
+      transform: translateY(-2px);
+    }
+
+    .btn-ver-detalhes {
+      background: #3498db;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+
+    .btn-ver-detalhes:hover {
+      background: #2980b9;
+      transform: translateY(-2px);
+    }
+
+    .btn-criar-reserva {
+      background: #27ae60;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+
+    .btn-criar-reserva:hover {
+      background: #229954;
+      transform: translateY(-2px);
+    }
+
+    /* BOTÃO PAGAR */
+    .btn-pagar {
+      background: #27ae60;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+
+    .btn-pagar:hover {
+      background: #229954;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+    }
+
+    /* RESPONSIVO */
+    @media (max-width: 768px) {
+      .modal-footer {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      
+      .acoes-direita {
+        flex-direction: column;
+      }
     }
 
     .spinner {
@@ -478,32 +691,32 @@ interface ApartamentoMapa {
     }
 
     .alerta-sucesso {
-  background: #d4edda;
-  border-left: 4px solid #28a745;
-  padding: 15px;
-  border-radius: 6px;
-  margin: 15px 0;
-}
+      background: #d4edda;
+      border-left: 4px solid #28a745;
+      padding: 15px;
+      border-radius: 6px;
+      margin: 15px 0;
+    }
 
-.texto-info {
-  color: #155724;
-  font-size: 0.95em;
-  margin-top: 8px;
-}
+    .texto-info {
+      color: #155724;
+      font-size: 0.95em;
+      margin-top: 8px;
+    }
 
-.info-adicional {
-  background: #e3f2fd;
-  border-left: 4px solid #2196f3;
-  padding: 12px;
-  border-radius: 6px;
-  margin-top: 10px;
-}
+    .info-adicional {
+      background: #e3f2fd;
+      border-left: 4px solid #2196f3;
+      padding: 12px;
+      border-radius: 6px;
+      margin-top: 10px;
+    }
 
-.texto-aviso {
-  color: #1976d2;
-  font-size: 0.9em;
-  margin: 0;
-}
+    .texto-aviso {
+      color: #1976d2;
+      font-size: 0.9em;
+      margin: 0;
+    }
 
     .celula-reserva:hover {
       transform: scale(1.05);
@@ -602,6 +815,14 @@ interface ApartamentoMapa {
       font-weight: 600;
     }
 
+    .badge-pre_reserva {
+      background: #d1ecf1;
+      color: #0c5460;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
     .badge-finalizada {
       background: #cce5ff;
       color: #004085;
@@ -610,51 +831,98 @@ interface ApartamentoMapa {
       font-weight: 600;
     }
 
-    .modal-footer {
-      display: flex;
-      justify-content: flex-end;
-      gap: 10px;
-      margin-top: 25px;
-      padding-top: 20px;
-      border-top: 1px solid #ecf0f1;
+    /* INFO BOX DO MODAL DE PAGAMENTO */
+    .info-box {
+      background: #e3f2fd;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      border-left: 4px solid #2196f3;
     }
 
-    .btn-cancelar,
-    .btn-ver-detalhes,
-    .btn-criar-reserva {
-      padding: 10px 20px;
+    .info-box p {
+      margin: 5px 0;
+      color: #1976d2;
+      font-size: 0.95em;
+    }
+
+    /* AVISO ATIVAÇÃO */
+    .aviso-ativacao {
+      background: #fff3cd;
+      border-left: 4px solid #ffc107;
+      padding: 15px;
+      margin-bottom: 20px;
+      border-radius: 4px;
+      color: #856404;
+      font-size: 0.95em;
+    }
+
+    .aviso-ativacao strong {
+      color: #856404;
+      font-weight: 700;
+    }
+
+    /* CAMPOS DO FORMULÁRIO */
+    .campo {
+      margin-bottom: 20px;
+    }
+
+    .campo label {
+      display: block;
+      margin-bottom: 8px;
+      color: #2c3e50;
+      font-weight: 600;
+    }
+
+    .campo input[type="number"],
+    .campo select,
+    .campo textarea {
+      width: 100%;
+      padding: 10px;
+      border: 2px solid #e0e0e0;
+      border-radius: 6px;
+      font-size: 1em;
+      transition: all 0.3s;
+      box-sizing: border-box;
+      font-family: inherit;
+    }
+
+    .campo input:focus,
+    .campo select:focus,
+    .campo textarea:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .campo small {
+      display: block;
+      margin-top: 5px;
+      color: #7f8c8d;
+      font-size: 0.9em;
+    }
+
+    .campo textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    /* BOTÃO CONFIRMAR PAGAMENTO */
+    .btn-confirmar-pagamento {
+      background: #27ae60;
+      color: white;
+      padding: 12px 24px;
       border: none;
       border-radius: 6px;
       cursor: pointer;
       font-weight: 600;
       transition: all 0.3s;
+      font-size: 1em;
     }
 
-    .btn-cancelar {
-      background: #95a5a6;
-      color: white;
-    }
-
-    .btn-cancelar:hover {
-      background: #7f8c8d;
-    }
-
-    .btn-ver-detalhes {
-      background: #3498db;
-      color: white;
-    }
-
-    .btn-ver-detalhes:hover {
-      background: #2980b9;
-    }
-
-    .btn-criar-reserva {
-      background: #27ae60;
-      color: white;
-    }
-
-    .btn-criar-reserva:hover {
+    .btn-confirmar-pagamento:hover {
       background: #229954;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
     }
 
     /* RESPONSIVO */
@@ -690,12 +958,18 @@ export class MapaReservasApp implements OnInit {
   dataInicio = '';
   periodoSelecionado = '15';
 
-  // Modal
+  // Modal Detalhes
   modalDetalhes = false;
   modalTitulo = '';
   reservaSelecionada: ReservaMapa | null = null;
   apartamentoSelecionado: ApartamentoMapa | null = null;
   dataSelecionada = '';
+
+  // Modal Pagamento
+  modalPagamento = false;
+  pagPreReservaValor = 0;
+  pagPreReservaFormaPagamento = '';
+  pagPreReservaObs = '';
 
   mapaReservas: Map<string, ReservaMapa> = new Map();
 
@@ -814,69 +1088,63 @@ export class MapaReservasApp implements OnInit {
   }
 
   getClasseReserva(apt: ApartamentoMapa, data: string): string {
-  const chave = `${apt.id}-${data}`;
-  const reserva = this.mapaReservas.get(chave);
+    const chave = `${apt.id}-${data}`;
+    const reserva = this.mapaReservas.get(chave);
 
-  // ✅ VERIFICAR SE TEM RESERVA NESSA DATA ESPECÍFICA
-  if (reserva) {
-    if (reserva.status === 'ATIVA') return 'celula-ocupado';
-    if (reserva.status === 'PRE_RESERVA') return 'celula-pre-reserva';
-  }
+    if (reserva) {
+      if (reserva.status === 'ATIVA') return 'celula-ocupado';
+      if (reserva.status === 'PRE_RESERVA') return 'celula-pre-reserva';
+    }
 
-  // ✅ SE NÃO TEM RESERVA, ESTÁ DISPONÍVEL (mesmo que hoje o apt esteja ocupado)
-  // Só verificar status de limpeza/manutenção se for HOJE ou PASSADO
-  const hoje = new Date().toISOString().split('T')[0];
-  const dataClicada = new Date(data + 'T00:00:00');
-  const dataHoje = new Date(hoje + 'T00:00:00');
+    const hoje = new Date().toISOString().split('T')[0];
+    const dataClicada = new Date(data + 'T00:00:00');
+    const dataHoje = new Date(hoje + 'T00:00:00');
 
-  // Se for data futura, ignorar status atual do apartamento
-  if (dataClicada > dataHoje) {
+    if (dataClicada > dataHoje) {
+      return 'celula-disponivel';
+    }
+
+    if (apt.status === 'LIMPEZA') return 'celula-limpeza';
+    if (apt.status === 'MANUTENCAO') return 'celula-manutencao';
+
     return 'celula-disponivel';
   }
 
-  // Se for hoje ou passado, verificar status do apartamento
-  if (apt.status === 'LIMPEZA') return 'celula-limpeza';
-  if (apt.status === 'MANUTENCAO') return 'celula-manutencao';
+  getTituloReserva(apt: ApartamentoMapa, data: string): string {
+    const chave = `${apt.id}-${data}`;
+    const reserva = this.mapaReservas.get(chave);
 
-  return 'celula-disponivel';
-}
+    if (reserva) {
+      const checkin = this.formatarData(reserva.dataCheckin);
+      const checkout = this.formatarData(reserva.dataCheckout);
+      
+      return `🔴 OCUPADO\n\n` +
+             `Reserva #${reserva.id}\n` +
+             `Cliente: ${reserva.clienteNome}\n` +
+             `Hóspedes: ${reserva.quantidadeHospede}\n\n` +
+             `Check-in: ${checkin}\n` +
+             `Check-out: ${checkout}`;
+    }
 
- getTituloReserva(apt: ApartamentoMapa, data: string): string {
-  const chave = `${apt.id}-${data}`;
-  const reserva = this.mapaReservas.get(chave);
+    const dataObj = new Date(data + 'T00:00:00');
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
 
-  if (reserva) {
-    const checkin = this.formatarData(reserva.dataCheckin);
-    const checkout = this.formatarData(reserva.dataCheckout);
-    
-    return `🔴 OCUPADO\n\n` +
-           `Reserva #${reserva.id}\n` +
-           `Cliente: ${reserva.clienteNome}\n` +
-           `Hóspedes: ${reserva.quantidadeHospede}\n\n` +
-           `Check-in: ${checkin}\n` +
-           `Check-out: ${checkout}`;
+    if (dataObj >= hoje) {
+      return `✅ DISPONÍVEL\n\n` +
+             `Apartamento ${apt.numeroApartamento}\n` +
+             `Data: ${this.getDiaMes(data)}\n\n` +
+             `Clique para criar uma reserva`;
+    }
+
+    return `Apt ${apt.numeroApartamento} - ${data}`;
   }
-
-  const dataObj = new Date(data + 'T00:00:00');
-  const hoje = new Date();
-  hoje.setHours(0, 0, 0, 0);
-
-  if (dataObj >= hoje) {
-    return `✅ DISPONÍVEL\n\n` +
-           `Apartamento ${apt.numeroApartamento}\n` +
-           `Data: ${this.getDiaMes(data)}\n\n` +
-           `Clique para criar uma reserva`;
-  }
-
-  return `Apt ${apt.numeroApartamento} - ${data}`;
-}
 
   getReservaInfo(apt: ApartamentoMapa, data: string): string {
     const chave = `${apt.id}-${data}`;
     const reserva = this.mapaReservas.get(chave);
 
     if (reserva) {
-      // Mostrar nome do cliente (primeira palavra)
       const primeiroNome = reserva.clienteNome.split(' ')[0];
       return primeiroNome;
     }
@@ -892,11 +1160,9 @@ export class MapaReservasApp implements OnInit {
     this.dataSelecionada = data;
 
     if (reserva) {
-      // Mostrar detalhes da reserva
       this.reservaSelecionada = reserva;
       this.modalTitulo = `Reserva #${reserva.id}`;
     } else {
-      // Disponível para reservar
       this.reservaSelecionada = null;
       this.modalTitulo = `Criar Nova Reserva`;
     }
@@ -905,132 +1171,134 @@ export class MapaReservasApp implements OnInit {
   }
 
   formatarDataSimples(data: string): string {
-  const d = new Date(data + 'T00:00:00');
-  return d.toLocaleDateString('pt-BR', {
-    weekday: 'long',
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric'
-  });
-}
-
-podeReservar(): boolean {
-  if (!this.apartamentoSelecionado || !this.dataSelecionada) return false;
-
-  // ✅ VERIFICAR SE TEM RESERVA NESSA DATA
-  const chave = `${this.apartamentoSelecionado.id}-${this.dataSelecionada}`;
-  const reserva = this.mapaReservas.get(chave);
-
-  // Se tem reserva nessa data, NÃO pode criar outra
-  if (reserva) {
-    return false;
+    const d = new Date(data + 'T00:00:00');
+    return d.toLocaleDateString('pt-BR', {
+      weekday: 'long',
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric'
+    });
   }
 
-  // ✅ SE FOR DATA FUTURA, SEMPRE PODE RESERVAR (se não tem reserva)
-  const dataClicada = new Date(this.dataSelecionada + 'T00:00:00');
-  const hoje = new Date();
-  hoje.setHours(0, 0, 0, 0);
+  podeReservar(): boolean {
+    if (!this.apartamentoSelecionado || !this.dataSelecionada) return false;
 
-  if (dataClicada >= hoje) {
-    return true;
+    const chave = `${this.apartamentoSelecionado.id}-${this.dataSelecionada}`;
+    const reserva = this.mapaReservas.get(chave);
+
+    if (reserva) {
+      return false;
+    }
+
+    const dataClicada = new Date(this.dataSelecionada + 'T00:00:00');
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    if (dataClicada >= hoje) {
+      return true;
+    }
+
+    return this.apartamentoSelecionado.status === 'DISPONIVEL';
   }
 
-  // Se for data passada, verificar status do apartamento
-  return this.apartamentoSelecionado.status === 'DISPONIVEL';
-}
+  criarNovaReserva(): void {
+    console.log('═══════════════════════════════════════');
+    console.log('➕ CRIAR NOVA RESERVA - INICIANDO');
+    
+    const apartamentoId = this.apartamentoSelecionado?.id;
+    const apartamentoNumero = this.apartamentoSelecionado?.numeroApartamento;
+    const dataCheckin = this.dataSelecionada;
 
-criarNovaReserva(): void {
-  console.log('═══════════════════════════════════════');
-  console.log('➕ CRIAR NOVA RESERVA - INICIANDO');
-  
-  // ✅ CAPTURAR VALORES **ANTES** DE FECHAR O MODAL
-  const apartamentoId = this.apartamentoSelecionado?.id;
-  const apartamentoNumero = this.apartamentoSelecionado?.numeroApartamento;
-  const dataCheckin = this.dataSelecionada;
+    console.log('📋 Valores capturados:');
+    console.log('   Apartamento ID:', apartamentoId);
+    console.log('   Apartamento Nº:', apartamentoNumero);
+    console.log('   Data:', dataCheckin);
 
-  console.log('📋 Valores capturados:');
-  console.log('   Apartamento ID:', apartamentoId);
-  console.log('   Apartamento Nº:', apartamentoNumero);
-  console.log('   Data:', dataCheckin);
+    if (!apartamentoId || !dataCheckin) {
+      console.error('❌ ERRO: Dados incompletos!');
+      alert('❌ Erro: Dados incompletos para criar a reserva');
+      return;
+    }
 
-  // Validações
-  if (!apartamentoId || !dataCheckin) {
-    console.error('❌ ERRO: Dados incompletos!');
-    console.error('   apartamentoId:', apartamentoId);
-    console.error('   dataCheckin:', dataCheckin);
-    alert('❌ Erro: Dados incompletos para criar a reserva');
-    return;
+    const queryParams = {
+      apartamentoId: apartamentoId.toString(),
+      dataCheckin: dataCheckin,
+      bloqueado: 'true'
+    };
+
+    console.log('📤 Query Params:', queryParams);
+    console.log('🔒 Fechando modal...');
+    this.fecharModal();
+
+    console.log('🚀 Navegando para /reservas/novo...');
+    
+    setTimeout(() => {
+      this.router.navigate(['/reservas/novo'], {
+        queryParams: queryParams
+      }).then(
+        (success) => {
+          console.log('✅ Navegação concluída:', success);
+        },
+        (error) => {
+          console.error('❌ ERRO na navegação:', error);
+          alert('❌ Erro ao navegar: ' + error);
+        }
+      );
+    }, 50);
+
+    console.log('═══════════════════════════════════════');
   }
-
-  // ✅ PREPARAR QUERY PARAMS (usando valores capturados)
-  const queryParams = {
-    apartamentoId: apartamentoId.toString(),
-    dataCheckin: dataCheckin,
-    bloqueado: 'true'
-  };
-
-  console.log('📤 Query Params:', queryParams);
-
-  // ✅ FECHAR O MODAL **DEPOIS** DE CAPTURAR OS VALORES
-  console.log('🔒 Fechando modal...');
-  this.fecharModal();
-
-  // ✅ NAVEGAR COM PEQUENO DELAY
-  console.log('🚀 Navegando para /reservas/novo...');
-  
-  setTimeout(() => {
-    this.router.navigate(['/reservas/novo'], {
-      queryParams: queryParams
-    }).then(
-      (success) => {
-        console.log('✅ Navegação concluída:', success);
-      },
-      (error) => {
-        console.error('❌ ERRO na navegação:', error);
-        alert('❌ Erro ao navegar: ' + error);
-      }
-    );
-  }, 50);
-
-  console.log('═══════════════════════════════════════');
-}
 
   verDetalhesReserva(): void {
-  if (!this.reservaSelecionada) {
-    console.error('❌ Nenhuma reserva selecionada');
-    return;
+    console.log('═══════════════════════════════════════');
+    console.log('🔍 VER DETALHES COMPLETOS');
+    console.log('═══════════════════════════════════════');
+    
+    if (!this.reservaSelecionada) {
+      console.error('❌ ERRO: Nenhuma reserva selecionada');
+      alert('❌ Erro: Nenhuma reserva selecionada');
+      return;
+    }
+
+    const reservaId = this.reservaSelecionada.id;
+    
+    console.log('📋 Reserva selecionada:');
+    console.log('   ID:', reservaId);
+    console.log('   Cliente:', this.reservaSelecionada.clienteNome);
+    console.log('   Apartamento:', this.reservaSelecionada.apartamentoNumero);
+    console.log('   Status:', this.reservaSelecionada.status);
+    
+    console.log('🚀 Navegando para: /reservas/' + reservaId);
+    
+    setTimeout(() => {
+      this.fecharModal();
+    }, 100);
+    
+    setTimeout(() => {
+      this.router.navigate(['/reservas', reservaId]).then(
+        (success) => {
+          console.log('✅ Navegação concluída com SUCESSO:', success);
+          console.log('═══════════════════════════════════════');
+        },
+        (error) => {
+          console.error('❌ ERRO na navegação:', error);
+          console.log('═══════════════════════════════════════');
+          alert('❌ Erro ao abrir detalhes da reserva: ' + error);
+        }
+      );
+    }, 200);
   }
 
-  const reservaId = this.reservaSelecionada.id;
-  console.log('📋 Navegando para detalhes da reserva:', reservaId);
-  
-  // Fechar modal
-  this.fecharModal();
-  
-  // Navegar para detalhes
-  this.router.navigate(['/reservas', reservaId]).then(
-    (success) => {
-      console.log('✅ Navegação para detalhes concluída:', success);
-    },
-    (error) => {
-      console.error('❌ Erro ao navegar para detalhes:', error);
-      alert('❌ Erro ao abrir detalhes da reserva');
-    }
-  );
-}
-
-  // ✅ VERSÃO CORRETA
-fecharModal(): void {
-  this.modalDetalhes = false;
-  
-  // ✅ LIMPAR VARIÁVEIS **DEPOIS** DE UM DELAY (para não interferir na navegação)
-  setTimeout(() => {
-    this.reservaSelecionada = null;
-    this.apartamentoSelecionado = null;
-    this.dataSelecionada = '';
-    console.log('🧹 Variáveis do modal limpas');
-  }, 200);
-}
+  fecharModal(): void {
+    this.modalDetalhes = false;
+    
+    setTimeout(() => {
+      this.reservaSelecionada = null;
+      this.apartamentoSelecionado = null;
+      this.dataSelecionada = '';
+      console.log('🧹 Variáveis do modal limpas');
+    }, 200);
+  }
 
   formatarData(data: string): string {
     const d = new Date(data);
@@ -1040,6 +1308,145 @@ fecharModal(): void {
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
+    });
+  }
+
+  excluirPreReserva(): void {
+    if (!this.reservaSelecionada) {
+      console.error('❌ Nenhuma reserva selecionada');
+      return;
+    }
+
+    const reservaId = this.reservaSelecionada.id;
+    const clienteNome = this.reservaSelecionada.clienteNome;
+    const apartamentoNumero = this.reservaSelecionada.apartamentoNumero;
+    const dataCheckin = this.formatarData(this.reservaSelecionada.dataCheckin);
+    
+    console.log('🗑️ Solicitação de exclusão da pré-reserva:', reservaId);
+    
+    const confirmacao = confirm(
+      `⚠️ CONFIRMA A EXCLUSÃO DESTA PRÉ-RESERVA?\n\n` +
+      `Reserva: #${reservaId}\n` +
+      `Cliente: ${clienteNome}\n` +
+      `Apartamento: ${apartamentoNumero}\n` +
+      `Check-in: ${dataCheckin}\n\n` +
+      `Esta ação NÃO pode ser desfeita!`
+    );
+
+    if (!confirmacao) {
+      console.log('❌ Exclusão cancelada pelo usuário');
+      return;
+    }
+
+    console.log('✅ Exclusão confirmada, enviando requisição...');
+    this.fecharModal();
+
+    this.http.delete(`http://localhost:8080/api/reservas/${reservaId}/pre-reserva`).subscribe({
+      next: () => {
+        console.log('✅ Pré-reserva excluída com sucesso');
+        alert('✅ Pré-reserva excluída com sucesso!');
+        this.carregarMapa();
+      },
+      error: (err: any) => {
+        console.error('❌ Erro ao excluir:', err);
+        alert('❌ Erro ao excluir pré-reserva: ' + (err.error?.message || err.message || 'Erro desconhecido'));
+      }
+    });
+  }
+
+  editarPreReserva(): void {
+    if (!this.reservaSelecionada) {
+      console.error('❌ Nenhuma reserva selecionada');
+      return;
+    }
+
+    const reservaId = this.reservaSelecionada.id;
+    
+    console.log('✏️ Editando pré-reserva:', reservaId);
+    
+    this.fecharModal();
+    this.router.navigate(['/reservas', reservaId, 'editar']);
+  }
+
+  // ============= PAGAMENTO PRÉ-RESERVA =============
+  abrirModalPagamento(): void {
+    if (!this.reservaSelecionada) return;
+    
+    console.log('💳 Abrindo modal de pagamento para reserva:', this.reservaSelecionada.id);
+    
+    this.http.get<any>(`http://localhost:8080/api/reservas/${this.reservaSelecionada.id}`).subscribe({
+      next: (reserva) => {
+        this.pagPreReservaValor = reserva.totalHospedagem;
+        this.pagPreReservaFormaPagamento = '';
+        this.pagPreReservaObs = '';
+        
+        this.modalDetalhes = false;
+        this.modalPagamento = true;
+      },
+      error: (err: any) => {
+        console.error('❌ Erro ao carregar reserva:', err);
+        alert('Erro ao carregar dados da reserva');
+      }
+    });
+  }
+
+  fecharModalPagamento(): void {
+    this.modalPagamento = false;
+    this.pagPreReservaValor = 0;
+    this.pagPreReservaFormaPagamento = '';
+    this.pagPreReservaObs = '';
+  }
+
+  confirmarPagamentoPreReserva(): void {
+    if (!this.reservaSelecionada) return;
+
+    if (!this.pagPreReservaFormaPagamento) {
+      alert('⚠️ Selecione uma forma de pagamento');
+      return;
+    }
+
+    if (this.pagPreReservaValor <= 0) {
+      alert('⚠️ Valor inválido');
+      return;
+    }
+
+    const dto = {
+      reservaId: this.reservaSelecionada.id,
+      valor: this.pagPreReservaValor,
+      formaPagamento: this.pagPreReservaFormaPagamento,
+      observacao: this.pagPreReservaObs || undefined
+    };
+
+    console.log('💳 Processando pagamento de pré-reserva:', dto);
+
+    this.http.post('http://localhost:8080/api/pagamentos/pre-reserva', dto).subscribe({
+      next: () => {
+        alert('✅ Pagamento registrado! Reserva ativada com sucesso!');
+        this.fecharModalPagamento();
+        
+        this.reservaSelecionada = null;
+        this.apartamentoSelecionado = null;
+        this.dataSelecionada = '';
+        
+        this.carregarMapa();
+      },
+      error: (err: any) => {
+        console.error('❌ Erro:', err);
+        
+        let mensagemErro = 'Erro ao processar pagamento';
+        
+        if (err.error) {
+          if (typeof err.error === 'string') {
+            mensagemErro = err.error;
+          } else if (err.error.message) {
+            mensagemErro = err.error.message;
+          } else if (err.error.erro) {
+            mensagemErro = err.error.erro;
+          }
+        }
+        
+        alert('❌ Erro: ' + mensagemErro);
+      }
     });
   }
 

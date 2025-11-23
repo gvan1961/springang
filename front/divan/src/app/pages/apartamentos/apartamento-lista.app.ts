@@ -755,7 +755,7 @@ export class ApartamentoListaApp implements OnInit {
   abrirReserva(apartamento: Apartamento): void {
     if (apartamento.reservaAtiva) {
       console.log('📋 Abrindo reserva:', apartamento.reservaAtiva.reservaId);
-      this.router.navigate(['/reservas/detalhes', apartamento.reservaAtiva.reservaId]);
+      this.router.navigate(['/reservas', apartamento.reservaAtiva.reservaId]);  // ✅ CORRETO
     }
   }
 

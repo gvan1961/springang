@@ -9,9 +9,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
+
 public class ProdutoRequestDTO {
     
     @NotBlank(message = "Nome do produto é obrigatório")
@@ -30,4 +28,46 @@ public class ProdutoRequestDTO {
     private BigDecimal valorCompra;
     
     private Long categoriaId;  // ✅ APENAS O ID DA CATEGORIA
+
+	public String getNomeProduto() {
+		return nomeProduto;
+	}
+
+	public void setNomeProduto(String nomeProduto) {
+		this.nomeProduto = nomeProduto;
+	}
+
+	public Integer getQuantidade() {
+		return quantidade;
+	}
+
+	public void setQuantidade(Integer quantidade) {
+		this.quantidade = quantidade;
+	}
+
+	public BigDecimal getValorVenda() {
+		return valorVenda;
+	}
+
+	public void setValorVenda(BigDecimal valorVenda) {
+		this.valorVenda = valorVenda;
+	}
+
+	public BigDecimal getValorCompra() {
+		return valorCompra;
+	}
+
+	public void setValorCompra(BigDecimal valorCompra) {
+		this.valorCompra = valorCompra;
+	}
+
+	public Long getCategoriaId() {
+		return categoriaId;
+	}
+
+	public void setCategoriaId(Long categoriaId) {
+		this.categoriaId = categoriaId;
+	}
+    
+    
 }

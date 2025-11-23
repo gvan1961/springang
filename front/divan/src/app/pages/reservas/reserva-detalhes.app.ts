@@ -1820,47 +1820,77 @@ gerarFatura(): void {
     this.modalPagamento = false;
   }
 
-  salvarPagamento(): void {
-    if (!this.reserva) {
-      alert('Reserva não encontrada');
-      return;
-    }
-
-    if (!this.pagFormaPagamento) {
-      alert('Selecione uma forma de pagamento');
-      return;
-    }
-
-    if (this.pagValor <= 0) {
-      alert('Valor inválido');
-      return;
-    }
-
-    if (this.pagValor > (this.reserva.totalApagar || 0)) {
-      alert(`Valor maior que saldo (R$ ${(this.reserva.totalApagar || 0).toFixed(2)})`);
-      return;
-    }
-
-    const dto = {
-      reservaId: this.reserva.id,
-      valor: this.pagValor,
-      formaPagamento: this.pagFormaPagamento,
-      observacao: this.pagObs || undefined
-    };
-
-    this.http.post('http://localhost:8080/api/pagamentos', dto).subscribe({
-      next: () => {
-        alert('✅ Pagamento registrado!');
-        this.fecharModalPagamento();
-        if (this.reserva) {
-          this.carregarReserva(this.reserva.id);
-        }
-      },
-      error: (err: any) => {
-        alert('❌ Erro: ' + (err.error || err.message));
-      }
-    });
+ salvarPagamento(): void {
+  if (!this.reserva) {
+    alert('Reserva não encontrada');
+    return;
   }
+
+  if (!this.pagFormaPagamento) {
+    alert('Selecione uma forma de pagamento');
+    return;
+  }
+
+  if (this.pagValor <= 0) {
+    alert('Valor inválido');
+    return;
+  }
+
+  if (this.pagValor > (this.reserva.totalApagar || 0)) {
+    alert(`Valor maior que saldo (R$ ${(this.reserva.totalApagar || 0).toFixed(2)})`);
+    return;
+  }
+
+  const dto = {
+    reservaId: this.reserva.id,
+    valor: this.pagValor,
+    formaPagamento: this.pagFormaPagamento,
+    observacao: this.pagObs || undefined
+  };
+
+  console.log('💳 Enviando pagamento:', dto);
+
+  this.http.post('http://localhost:8080/api/pagamentos', dto).subscribe({
+    next: () => {
+      alert('✅ Pagamento registrado!');
+      this.fecharModalPagamento();
+      if (this.reserva) {
+        this.carregarReserva(this.reserva.id);
+      }
+    },
+    error: (err: any) => {
+      console.log('═══════════════════════════════════════');
+      console.log('❌ ERRO AO REGISTRAR PAGAMENTO');
+      console.log('═══════════════════════════════════════');
+      console.log('Erro completo:', err);
+      console.log('err.error:', err.error);
+      console.log('err.message:', err.message);
+      console.log('err.status:', err.status);
+      
+      // ✅ EXTRAIR MENSAGEM DE ERRO CORRETAMENTE
+      let mensagemErro = 'Erro ao registrar pagamento';
+      
+      if (err.error) {
+        if (typeof err.error === 'string') {
+          mensagemErro = err.error;
+        } else if (err.error.message) {
+          mensagemErro = err.error.message;
+        } else if (err.error.erro) {
+          mensagemErro = err.error.erro;
+        } else {
+          mensagemErro = JSON.stringify(err.error);
+        }
+      } else if (err.message) {
+        mensagemErro = err.message;
+      }
+      
+      console.log('📝 Mensagem extraída:', mensagemErro);
+      console.log('═══════════════════════════════════════');
+      
+      alert('❌ Erro: ' + mensagemErro);
+    }
+  });
+}
 
   // ============= CONSUMO =============
   abrirModalConsumo(): void {

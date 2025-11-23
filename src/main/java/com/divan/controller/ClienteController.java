@@ -39,6 +39,7 @@ public class ClienteController {
             cliente.setCidade(dto.getCidade());
             cliente.setEstado(dto.getEstado());
             cliente.setDataNascimento(dto.getDataNascimento());
+            cliente.setCreditoAprovado(dto.getCreditoAprovado() != null ? dto.getCreditoAprovado() : false);
             
             Cliente clienteSalvo = clienteService.salvar(cliente, dto.getEmpresaId());
             return ResponseEntity.status(HttpStatus.CREATED).body(clienteSalvo);
@@ -119,6 +120,7 @@ public class ClienteController {
             cliente.setCidade(dto.getCidade());
             cliente.setEstado(dto.getEstado());
             cliente.setDataNascimento(dto.getDataNascimento());
+            cliente.setCreditoAprovado(dto.getCreditoAprovado() != null ? dto.getCreditoAprovado() : false);
             
             Cliente clienteAtualizado = clienteService.atualizar(id, cliente, dto.getEmpresaId());
             return ResponseEntity.ok(clienteAtualizado);

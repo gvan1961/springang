@@ -21,7 +21,7 @@ import { Router, RouterLink, RouterLinkActive } from '@angular/router';
         <a routerLink="/reservas" routerLinkActive="active" class="nav-item">
           <span class="icon">📋</span>
           <span class="label">Reservas</span>
-        </a>
+        </a>   
 
         <a routerLink="/clientes" routerLinkActive="active" class="nav-item">
           <span class="icon">👥</span>
@@ -189,6 +189,25 @@ import { Router, RouterLink, RouterLinkActive } from '@angular/router';
       cursor: pointer;
       transition: all 0.2s ease;
     }
+
+    .nav-section {
+    padding: 15px 20px 5px 20px;
+    margin-top: 10px;
+  }
+
+  .section-title {
+    font-size: 0.75em;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: rgba(255,255,255,0.5);
+    text-transform: uppercase;
+  }
+
+  .nav-divider {
+    height: 1px;
+    background: rgba(255,255,255,0.1);
+    margin: 10px 20px;
+  }
 
     .logout-btn:hover {
       background: rgba(231, 76, 60, 0.4);

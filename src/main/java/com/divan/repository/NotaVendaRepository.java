@@ -17,5 +17,6 @@ public interface NotaVendaRepository extends JpaRepository<NotaVenda, Long> {
         NotaVenda.TipoVendaEnum tipoVenda, 
         LocalDateTime inicio, 
         LocalDateTime fim
-    );
+    );          
+    
 }

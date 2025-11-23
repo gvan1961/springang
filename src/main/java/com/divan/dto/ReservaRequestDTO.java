@@ -2,15 +2,10 @@ package com.divan.dto;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
+
 public class ReservaRequestDTO {
     
     @NotNull(message = "Apartamento é obrigatório")
@@ -28,4 +23,46 @@ public class ReservaRequestDTO {
     
     @NotNull(message = "Data de check-out é obrigatória")
     private LocalDateTime dataCheckout;
+
+	public Long getApartamentoId() {
+		return apartamentoId;
+	}
+
+	public void setApartamentoId(Long apartamentoId) {
+		this.apartamentoId = apartamentoId;
+	}
+
+	public Long getClienteId() {
+		return clienteId;
+	}
+
+	public void setClienteId(Long clienteId) {
+		this.clienteId = clienteId;
+	}
+
+	public Integer getQuantidadeHospede() {
+		return quantidadeHospede;
+	}
+
+	public void setQuantidadeHospede(Integer quantidadeHospede) {
+		this.quantidadeHospede = quantidadeHospede;
+	}
+
+	public LocalDateTime getDataCheckin() {
+		return dataCheckin;
+	}
+
+	public void setDataCheckin(LocalDateTime dataCheckin) {
+		this.dataCheckin = dataCheckin;
+	}
+
+	public LocalDateTime getDataCheckout() {
+		return dataCheckout;
+	}
+
+	public void setDataCheckout(LocalDateTime dataCheckout) {
+		this.dataCheckout = dataCheckout;
+	}
+    
+    
 }

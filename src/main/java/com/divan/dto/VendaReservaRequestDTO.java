@@ -9,9 +9,6 @@ import lombok.NoArgsConstructor;
 
 import java.util.List;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
 public class VendaReservaRequestDTO {
     
     @NotNull(message = "Reserva é obrigatória")
@@ -19,4 +16,22 @@ public class VendaReservaRequestDTO {
     
     @NotEmpty(message = "Deve ter pelo menos um item")
     private List<ItemVendaRequestDTO> itens;
+
+	public Long getReservaId() {
+		return reservaId;
+	}
+
+	public void setReservaId(Long reservaId) {
+		this.reservaId = reservaId;
+	}
+
+	public List<ItemVendaRequestDTO> getItens() {
+		return itens;
+	}
+
+	public void setItens(List<ItemVendaRequestDTO> itens) {
+		this.itens = itens;
+	}
+    
+    
 }

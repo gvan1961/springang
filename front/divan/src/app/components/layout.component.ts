@@ -6,12 +6,19 @@ import { SidebarComponent } from './sidebar.component';
 @Component({
   selector: 'app-layout',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, SidebarComponent],
+  imports: [
+    CommonModule, 
+    RouterOutlet, 
+    SidebarComponent
+    
+  ],
   template: `
     <div class="layout">
       <app-sidebar></app-sidebar>
       
       <main class="main-content">
+        <!-- ✅ ADICIONAR O INDICADOR AQUI -->
+            
         <router-outlet></router-outlet>
       </main>
     </div>
@@ -28,6 +35,7 @@ import { SidebarComponent } from './sidebar.component';
       margin-left: 200px;
       min-height: 100vh;
       transition: margin-left 0.3s ease;
+      position: relative;  /* ✅ ADICIONAR para o indicador ficar posicionado corretamente */
     }
 
     @media (max-width: 768px) {
@@ -36,7 +44,6 @@ import { SidebarComponent } from './sidebar.component';
       }
     }
 
-    /* ✅ ADICIONAR ISTO AQUI */
     @media print {
       app-sidebar {
         display: none !important;
@@ -50,8 +57,12 @@ import { SidebarComponent } from './sidebar.component';
       .layout {
         background: white !important;
       }
+      
+      /* ✅ ESCONDER INDICADOR NA IMPRESSÃO */
+      app-indicador-caixa {
+        display: none !important;
+      }
     }
-
   `]
 })
 export class LayoutComponent {}
