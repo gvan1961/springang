@@ -21,6 +21,16 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import com.divan.dto.ProdutoVendidoDTO;
+import com.divan.dto.VendaDetalhadaDTO;
+import com.divan.dto.RelatorioVendasCaixaDTO;
+import com.divan.entity.NotaVenda;
+import com.divan.entity.ItemVenda;
+import com.divan.repository.NotaVendaRepository;
+import com.divan.repository.ItemVendaRepository;
+import java.util.HashMap;
+import java.util.Map;
+
 @Service
 @Transactional
 public class FechamentoCaixaService {
@@ -36,6 +46,12 @@ public class FechamentoCaixaService {
     
     @Autowired
     private UsuarioRepository usuarioRepository;
+    
+    @Autowired
+    private NotaVendaRepository notaVendaRepository;
+
+    @Autowired
+    private ItemVendaRepository itemVendaRepository;
     
     /**
      * ✅ ABRIR CAIXA
@@ -384,6 +400,199 @@ public class FechamentoCaixaService {
         
         return dto;
     }
+    
+    /**
+     * ✅ BUSCAR VENDAS DETALHADAS DO CAIXA
+     * Mostra todos os produtos vendidos organizados por forma de pagamento
+     */
+    /**
+     * ✅ BUSCAR VENDAS DETALHADAS DO CAIXA
+     * Mostra todos os produtos vendidos organizados por forma de pagamento
+     */
+    @Transactional(readOnly = true)
+    public RelatorioVendasCaixaDTO buscarVendasDetalhadas(Long caixaId) {
+        System.out.println("═══════════════════════════════════════════");
+        System.out.println("🛒 BUSCANDO VENDAS DETALHADAS DO CAIXA #" + caixaId);
+        
+        FechamentoCaixa caixa = fechamentoCaixaRepository.findById(caixaId)
+            .orElseThrow(() -> new RuntimeException("Caixa não encontrado"));
+        
+        RelatorioVendasCaixaDTO relatorio = new RelatorioVendasCaixaDTO(caixaId);
+        
+        // 1. Buscar TODOS os pagamentos do caixa
+        List<Pagamento> todosPagamentos = pagamentoRepository.findByCaixa(caixa);
+        
+        System.out.println("📊 Total de pagamentos no caixa: " + todosPagamentos.size());
+        
+        // Mostrar os tipos encontrados
+        System.out.println("📋 Tipos de pagamento encontrados:");
+        todosPagamentos.forEach(p -> System.out.println("   - " + p.getTipo() + " = R$ " + p.getValor()));
+        
+        // 2. Filtrar apenas pagamentos de VENDAS (não hospedagem/diária)
+        List<Pagamento> pagamentos = todosPagamentos.stream()
+            .filter(p -> p.getTipo() != null && 
+                        (p.getTipo().equalsIgnoreCase("PRODUTO") || 
+                         p.getTipo().equalsIgnoreCase("VENDA") ||
+                         p.getTipo().equalsIgnoreCase("VENDA_AVULSA_FATURADA") ||
+                         p.getTipo().equalsIgnoreCase("CONSUMO")))
+            .collect(Collectors.toList());
+        
+        System.out.println("📊 Total de pagamentos de produtos/vendas: " + pagamentos.size());
+        
+        // 3. Para cada pagamento, buscar a nota de venda e seus itens
+        for (Pagamento pagamento : pagamentos) {
+            System.out.println("🔍 Processando pagamento #" + pagamento.getId() + 
+                              " - Tipo: " + pagamento.getTipo() + 
+                              " - Valor: R$ " + pagamento.getValor());
+            
+            // Verificar se o pagamento tem reserva associada
+            if (pagamento.getReserva() != null) {
+                System.out.println("   → Tem reserva #" + pagamento.getReserva().getId());
+                
+                // Buscar notas de venda pela reserva
+                List<NotaVenda> notas = notaVendaRepository.findByReserva(pagamento.getReserva());
+                System.out.println("   → Notas encontradas: " + notas.size());
+                
+                for (NotaVenda nota : notas) {
+                    processarNotaVendaRelatorio(relatorio, nota, pagamento);
+                }
+            } else {
+                System.out.println("   → Venda à vista (sem reserva)");
+                
+                // Venda à vista - buscar pela descrição ou período
+                LocalDateTime inicioCaixa = caixa.getDataHoraAbertura();
+                LocalDateTime fimCaixa = caixa.getDataHoraFechamento() != null 
+                    ? caixa.getDataHoraFechamento() 
+                    : LocalDateTime.now();
+                
+                // Buscar todas as notas do período
+                List<NotaVenda> notasPeriodo = notaVendaRepository.findByDataHoraVendaBetween(
+                    inicioCaixa, 
+                    fimCaixa
+                );
+                
+                System.out.println("   → Notas no período: " + notasPeriodo.size());
+                
+                for (NotaVenda nota : notasPeriodo) {
+                    // Verificar se o valor bate (aproximadamente)
+                    if (nota.getTotal().compareTo(pagamento.getValor()) == 0) {
+                        System.out.println("   → Nota #" + nota.getId() + " corresponde ao valor!");
+                        processarNotaVendaRelatorio(relatorio, nota, pagamento);
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // 4. Calcular totais gerais
+        calcularTotaisGeraisRelatorio(relatorio);
+        
+        System.out.println("═══════════════════════════════════════════");
+        System.out.println("✅ Relatório gerado com sucesso!");
+        System.out.println("   Total de vendas: " + relatorio.getTotalVendas());
+        System.out.println("   Total de produtos: " + relatorio.getTotalProdutos());
+        System.out.println("   Total geral: R$ " + relatorio.getTotalGeral());
+        System.out.println("═══════════════════════════════════════════");
+        
+        return relatorio;
+    }
+    /**
+     * 🔄 PROCESSAR NOTA DE VENDA E ADICIONAR AO RELATÓRIO
+     */
+    private void processarNotaVendaRelatorio(RelatorioVendasCaixaDTO relatorio, NotaVenda nota, Pagamento pagamento) {
+        // Buscar itens da nota com os produtos
+        List<ItemVenda> itens = itemVendaRepository.findByNotaVendaIdWithProduto(nota.getId());
+        
+        if (!itens.isEmpty()) {
+            VendaDetalhadaDTO vendaDTO = criarVendaDetalhadaDTO(nota, itens);
+            String formaPagamento = pagamento.getFormaPagamento().toString();
+            
+            // Adicionar ao mapa de vendas por forma de pagamento
+            relatorio.getVendasPorFormaPagamento()
+                .get(formaPagamento)
+                .add(vendaDTO);
+            
+            // Atualizar totais
+            atualizarTotaisRelatorio(relatorio, formaPagamento, vendaDTO);
+        }
+    }
+
+    /**
+     * 🔄 CRIAR VENDA DETALHADA DTO A PARTIR DA NOTA E ITENS
+     */
+    private VendaDetalhadaDTO criarVendaDetalhadaDTO(NotaVenda nota, List<ItemVenda> itens) {
+        VendaDetalhadaDTO vendaDTO = new VendaDetalhadaDTO();
+        vendaDTO.setNotaVendaId(nota.getId());
+        vendaDTO.setDataHora(nota.getDataHoraVenda());
+        vendaDTO.setValorTotal(nota.getTotal());
+        vendaDTO.setTipoVenda(nota.getTipoVenda().toString());
+        
+        List<ProdutoVendidoDTO> produtosDTO = new ArrayList<>();
+        
+        for (ItemVenda item : itens) {
+            ProdutoVendidoDTO produtoDTO = new ProdutoVendidoDTO();
+            produtoDTO.setProdutoId(item.getProduto().getId());
+            produtoDTO.setNomeProduto(item.getProduto().getNomeProduto());
+            produtoDTO.setQuantidade(item.getQuantidade());
+            produtoDTO.setValorUnitario(item.getValorUnitario());
+            produtoDTO.setTotalItem(item.getTotalItem());
+            
+            produtosDTO.add(produtoDTO);
+        }
+        
+        vendaDTO.setProdutos(produtosDTO);
+        
+        return vendaDTO;
+    }
+
+    /**
+     * 🔄 ATUALIZAR TOTAIS DO RELATÓRIO
+     */
+    private void atualizarTotaisRelatorio(RelatorioVendasCaixaDTO relatorio, String formaPagamento, VendaDetalhadaDTO venda) {
+        // Atualizar total por forma de pagamento
+        BigDecimal totalAtual = relatorio.getTotaisPorFormaPagamento().get(formaPagamento);
+        relatorio.getTotaisPorFormaPagamento().put(
+            formaPagamento, 
+            totalAtual.add(venda.getValorTotal())
+        );
+        
+        // Atualizar quantidade de vendas
+        Integer qtdVendas = relatorio.getQuantidadeVendasPorFormaPagamento().get(formaPagamento);
+        relatorio.getQuantidadeVendasPorFormaPagamento().put(formaPagamento, qtdVendas + 1);
+        
+        // Atualizar quantidade de produtos
+        Integer qtdProdutos = relatorio.getQuantidadeProdutosPorFormaPagamento().get(formaPagamento);
+        int totalProdutosVenda = venda.getProdutos().stream()
+            .mapToInt(ProdutoVendidoDTO::getQuantidade)
+            .sum();
+        relatorio.getQuantidadeProdutosPorFormaPagamento().put(formaPagamento, qtdProdutos + totalProdutosVenda);
+    }
+
+    /**
+     * 🔄 CALCULAR TOTAIS GERAIS DO RELATÓRIO
+     */
+    private void calcularTotaisGeraisRelatorio(RelatorioVendasCaixaDTO relatorio) {
+        BigDecimal totalGeral = BigDecimal.ZERO;
+        int totalVendas = 0;
+        int totalProdutos = 0;
+        
+        for (BigDecimal total : relatorio.getTotaisPorFormaPagamento().values()) {
+            totalGeral = totalGeral.add(total);
+        }
+        
+        for (Integer qtd : relatorio.getQuantidadeVendasPorFormaPagamento().values()) {
+            totalVendas += qtd;
+        }
+        
+        for (Integer qtd : relatorio.getQuantidadeProdutosPorFormaPagamento().values()) {
+            totalProdutos += qtd;
+        }
+        
+        relatorio.setTotalGeral(totalGeral);
+        relatorio.setTotalVendas(totalVendas);
+        relatorio.setTotalProdutos(totalProdutos);
+    }
+    
     
     /**
      * 🔄 CONVERTER DETALHE PARA DTO

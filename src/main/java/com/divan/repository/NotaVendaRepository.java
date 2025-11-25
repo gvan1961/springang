@@ -1,5 +1,7 @@
 package com.divan.repository;
 import com.divan.entity.NotaVenda;
+import com.divan.entity.Reserva;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -17,6 +19,9 @@ public interface NotaVendaRepository extends JpaRepository<NotaVenda, Long> {
         NotaVenda.TipoVendaEnum tipoVenda, 
         LocalDateTime inicio, 
         LocalDateTime fim
-    );          
+    );   
+    
+    List<NotaVenda> findByReserva(Reserva reserva); 
+    
     
 }

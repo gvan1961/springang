@@ -1,6 +1,5 @@
 package com.divan.controller;
 
-import java.util.Set;
 import java.util.stream.Collectors;
 import com.divan.dto.FechamentoCaixaDTO;
 import com.divan.dto.FechamentoCaixaDetalheDTO;
@@ -8,7 +7,7 @@ import com.divan.entity.FechamentoCaixa;
 import com.divan.entity.FechamentoCaixaDetalhe;
 import com.divan.entity.Pagamento;
 import com.divan.entity.Reserva;
-import com.divan.enums.FormaPagamento;
+
 import com.divan.repository.FechamentoCaixaRepository;
 import com.divan.repository.FechamentoCaixaDetalheRepository;
 import com.divan.repository.PagamentoRepository;
@@ -17,14 +16,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
+import com.divan.dto.RelatorioVendasCaixaDTO;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
-import java.util.HashMap;
+
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/fechamento-caixa")
@@ -487,6 +485,33 @@ public class FechamentoCaixaController {
             return ResponseEntity.ok(relatorio);
             
         } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(Map.of("erro", e.getMessage()));
+        }
+    }
+    
+    /**
+     * 🛒 BUSCAR VENDAS DETALHADAS DO CAIXA (PRODUTOS POR FORMA DE PAGAMENTO)
+     */
+    @GetMapping("/{id}/vendas-detalhadas")
+    public ResponseEntity<?> buscarVendasDetalhadas(@PathVariable Long id) {
+        try {
+            System.out.println("═══════════════════════════════════════════");
+            System.out.println("🛒 CONTROLLER - BUSCAR VENDAS DETALHADAS");
+            System.out.println("   Caixa ID: " + id);
+            
+            RelatorioVendasCaixaDTO relatorio = fechamentoCaixaService.buscarVendasDetalhadas(id);
+            
+            System.out.println("✅ Relatório gerado com sucesso!");
+            System.out.println("   Total vendas: " + relatorio.getTotalVendas());
+            System.out.println("   Total produtos: " + relatorio.getTotalProdutos());
+            System.out.println("   Total geral: R$ " + relatorio.getTotalGeral());
+            System.out.println("═══════════════════════════════════════════");
+            
+            return ResponseEntity.ok(relatorio);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Erro ao buscar vendas detalhadas: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.badRequest().body(Map.of("erro", e.getMessage()));
         }
