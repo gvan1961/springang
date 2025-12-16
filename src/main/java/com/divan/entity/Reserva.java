@@ -14,9 +14,7 @@ import java.util.Objects;
 
 @Entity
 @Table(name = "reservas")
-//@Data
-//@NoArgsConstructor
-//@AllArgsConstructor
+
 public class Reserva {
     
     @Id
@@ -84,12 +82,8 @@ public class Reserva {
     private BigDecimal desconto = BigDecimal.ZERO;
     
     @Column(nullable = false, precision = 10, scale = 2)
-    private BigDecimal totalApagar = BigDecimal.ZERO;
-    
-   // @Enumerated(EnumType.STRING)
-   // @Column(nullable = false)
-   // private StatusReservaEnum status = StatusReservaEnum.ATIVA;
-    
+    private BigDecimal totalApagar = BigDecimal.ZERO;    
+       
     @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 20, nullable = false)
     private StatusReservaEnum status;
@@ -105,12 +99,14 @@ public class Reserva {
     
     @OneToMany(mappedBy = "reserva", cascade = CascadeType.ALL)
     @JsonIgnoreProperties("reserva")
-    private List<NotaVenda> notasVenda;
+    private List<NotaVenda> notasVenda;     
          
     public enum StatusReservaEnum {
         ATIVA, CANCELADA, FINALIZADA, PRE_RESERVA
     }
 
+    
+    
 	public Long getId() {
 		return id;
 	}
@@ -269,8 +265,7 @@ public class Reserva {
 
 	public void setNotasVenda(List<NotaVenda> notasVenda) {
 		this.notasVenda = notasVenda;
-	}
-
+		}
 	
 	
 	@Override

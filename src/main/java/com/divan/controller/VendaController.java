@@ -3,12 +3,14 @@ package com.divan.controller;
 import com.divan.dto.ComandaConsumoRequest;
 import com.divan.dto.ComandaConsumoResponse;
 import com.divan.dto.ItemVendaRequestDTO;
+import com.divan.dto.ValeResponse;
 import com.divan.dto.VendaBalcaoRequest;
 import com.divan.dto.VendaBalcaoResponse;
 import com.divan.dto.VendaReservaRequestDTO;
 import com.divan.entity.ItemVenda;
 import com.divan.entity.NotaVenda;
 import com.divan.entity.Produto;
+import com.divan.entity.Vale;
 import com.divan.service.VendaService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +18,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -151,4 +154,5 @@ public class VendaController {
             return ResponseEntity.badRequest().body(erro);
         }
     }
+    
 }

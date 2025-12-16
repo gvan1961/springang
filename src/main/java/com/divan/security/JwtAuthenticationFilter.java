@@ -34,6 +34,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String method = request.getMethod();
         System.out.println("🔍 Requisição: " + method + " " + path);
         
+        // ✅ VERIFICAR SE É ENDPOINT PÚBLICO (PULAR AUTENTICAÇÃO)
+        if (isPublicEndpoint(path, method)) {
+            System.out.println("🌐 Endpoint público - pulando autenticação");
+            filterChain.doFilter(request, response);
+            return;
+        }
+        
         String jwt = getJwtFromRequest(request);
         System.out.println("🎫 JWT recebido: " + (jwt != null ? "SIM (" + jwt.substring(0, 20) + "...)" : "NÃO"));
         
@@ -59,7 +66,35 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         
         filterChain.doFilter(request, response);
     }
-
+    
+    /**
+     * ✅ VERIFICA SE O ENDPOINT É PÚBLICO (NÃO PRECISA DE JWT)
+     */
+    private boolean isPublicEndpoint(String path, String method) {
+        // Auth
+        if (path.startsWith("/api/auth/")) return true;
+        if (path.startsWith("/api/public/")) return true;
+        
+        // Hospedagem
+        if (path.startsWith("/api/hospedagem-hospedes/")) return true;
+        
+        // ✅ RELATÓRIOS DE CAIXA (GET apenas)
+        if ("GET".equals(method) && path.matches("/api/fechamento-caixa/\\d+/relatorio")) return true;
+        if ("GET".equals(method) && path.matches("/api/fechamento-caixa/\\d+/imprimir")) return true;
+        
+        // Jantar
+        if (path.equals("/api/jantar/relatorio-impressao")) return true;
+        
+        // Checkout parcial
+        if ("POST".equals(method) && path.matches("/api/reservas/\\d+/checkout-parcial")) return true;
+        
+        // Outros
+        if (path.equals("/favicon.ico")) return true;
+        if ("OPTIONS".equals(method)) return true;
+        
+        return false;
+    }
+    
     private String getJwtFromRequest(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
         System.out.println("📋 Header Authorization: " + bearerToken);

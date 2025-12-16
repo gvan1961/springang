@@ -46,7 +46,7 @@ public class NotaVenda {
     private List<ItemVenda> itens;
     
     public enum TipoVendaEnum {
-        VISTA, APARTAMENTO, FATURADO
+        VISTA, APARTAMENTO, FATURADO, CONSUMO
     }
     
     public enum Status {

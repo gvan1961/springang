@@ -33,7 +33,9 @@ public class Empresa {
     @Pattern(regexp = "\\(\\d{2}\\)\\s\\d{4,5}-\\d{4}", message = "Celular deve estar no formato (XX) XXXXX-XXXX")
     @Column(nullable = false)
     private String celular;
-    
+
+    @Column(name = "autoriza_todos_jantar")
+    private Boolean autorizaTodosJantar = false;
     // IMPORTANTE: JsonIgnoreProperties evita o loop infinito
     @OneToMany(mappedBy = "empresa", cascade = CascadeType.ALL)
     @JsonIgnoreProperties("empresa")
@@ -78,6 +80,16 @@ public class Empresa {
 	public void setCelular(String celular) {
 		this.celular = celular;
 	}
+	
+	
+
+	public Boolean getAutorizaTodosJantar() {
+		return autorizaTodosJantar;
+	}
+
+	public void setAutorizaTodosJantar(Boolean autorizaTodosJantar) {
+		this.autorizaTodosJantar = autorizaTodosJantar;
+	}
 
 	public List<Cliente> getClientes() {
 		return clientes;
@@ -102,7 +114,6 @@ public class Empresa {
 			return false;
 		Empresa other = (Empresa) obj;
 		return Objects.equals(id, other.id);
-	}
-    
+	}   
     
 }

@@ -15,6 +15,8 @@ public class ReservaDetalhesDTO {
     // CLIENTE
     private ClienteSimples cliente;
     
+    private List<HospedeSimples> hospedes;
+    
     // APARTAMENTO
     private ApartamentoSimples apartamento;
     
@@ -74,7 +76,66 @@ public class ReservaDetalhesDTO {
         public void setDataHoraDesconto(LocalDateTime dataHoraDesconto) {
             this.dataHoraDesconto = dataHoraDesconto;
         }
+        
+        
     }
+    
+    public static class HospedeSimples {
+        private Long id;
+        private Long clienteId;
+        private String nomeCompleto;
+        private String cpf;
+        private String telefone;
+        private Boolean titular;
+        private String status; // HOSPEDADO, CHECKOUT_REALIZADO
+        
+        // Getters e Setters
+        public Long getId() {
+            return id;
+        }
+        public void setId(Long id) {
+            this.id = id;
+        }
+        public Long getClienteId() {
+            return clienteId;
+        }
+        public void setClienteId(Long clienteId) {
+            this.clienteId = clienteId;
+        }
+        public String getNomeCompleto() {
+            return nomeCompleto;
+        }
+        public void setNomeCompleto(String nomeCompleto) {
+            this.nomeCompleto = nomeCompleto;
+        }
+        public String getCpf() {
+            return cpf;
+        }
+        public void setCpf(String cpf) {
+            this.cpf = cpf;
+        }
+        public String getTelefone() {
+            return telefone;
+        }
+        public void setTelefone(String telefone) {
+            this.telefone = telefone;
+        }
+        public Boolean getTitular() {
+            return titular;
+        }
+        public void setTitular(Boolean titular) {
+            this.titular = titular;
+        }
+        public String getStatus() {
+            return status;
+        }
+        public void setStatus(String status) {
+            this.status = status;
+        }
+        
+        
+    }
+
     
     public static class ClienteSimples {
         private Long id;
@@ -391,6 +452,16 @@ public class ReservaDetalhesDTO {
 
 	public void setDescontos(List<DescontoSimples> descontos) {
 		this.descontos = descontos;
-	}    
+	}
+
+	public List<HospedeSimples> getHospedes() {
+		return hospedes;
+	}
+
+	public void setHospedes(List<HospedeSimples> hospedes) {
+		this.hospedes = hospedes;
+	}  
+	
+	
     
 }

@@ -1,13 +1,26 @@
 package com.divan.service;
 
+import java.time.temporal.ChronoUnit;
+import java.util.stream.Collectors;
+
+import java.time.format.DateTimeFormatter;
+
+import com.divan.dto.CheckoutParcialRequestDTO;
+import com.divan.dto.HospedeReservaDTO;
+import com.divan.entity.HospedagemHospede;
+import com.divan.entity.Reserva.StatusReservaEnum;
+import com.divan.repository.HospedagemHospedeRepository;
+import java.time.LocalDate;
 import com.divan.enums.FormaPagamento;
 import com.divan.dto.ApartamentoResponseDTO;
 import com.divan.dto.ClienteResponseDTO;
 import com.divan.dto.ComandaRapidaDTO;
-import com.divan.dto.LancamentoRapidoRequest;
+import com.divan.dto.LancamentoRapidoRequestDTO;
 import com.divan.dto.ReservaResponseDTO;
 import com.divan.dto.TransferenciaApartamentoDTO;
+import com.divan.dto.TransferenciaHospedeDTO;
 import com.divan.entity.*;
+import com.divan.entity.Apartamento.StatusEnum;
 import com.divan.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -15,6 +28,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -30,12 +45,16 @@ import com.divan.repository.FechamentoCaixaRepository;
 import java.time.LocalDate;
 
 import com.divan.entity.ContaAReceber;
+import com.divan.entity.ExtratoReserva.StatusLancamentoEnum;
 import com.divan.repository.ContaAReceberRepository;
 
 @Service
 @Transactional
 public class ReservaService {
     
+	@Autowired
+	private ControleDiariaService controleDiariaService;
+	
     @Autowired
     private ReservaRepository reservaRepository;
     
@@ -61,6 +80,9 @@ public class ReservaService {
     private NotaVendaRepository notaVendaRepository;
     
     @Autowired
+    private ClienteRepository clienteRepository;
+    
+    @Autowired
     private ExtratoReservaRepository extratoReservaRepository;
     
     @Autowired
@@ -68,6 +90,9 @@ public class ReservaService {
     
     @Autowired
     private ContaAReceberRepository contaAReceberRepository;
+    
+    @Autowired
+    private HospedagemHospedeRepository hospedagemHospedeRepository;
      
     /**
      * Verifica se existe conflito de datas para o apartamento
@@ -226,12 +251,19 @@ public class ReservaService {
     // ✅ CRIAR RESERVA
     // ============================================
     
+    /**
+     * ✅ CRIAR RESERVA COM VALIDAÇÃO DE CONFLITOS E PROCESSAMENTO DE HÓSPEDES
+     */
+    /**
+     * ✅ CRIAR RESERVA COM VALIDAÇÃO DE CONFLITOS E PROCESSAMENTO DE HÓSPEDES
+     */
+    @Transactional
     public Reserva criarReserva(Reserva reserva) {
         System.out.println("═══════════════════════════════════════════");
         System.out.println("📝 CRIANDO NOVA RESERVA");
         System.out.println("═══════════════════════════════════════════");
         
-        // ✅ VERIFICAR CONFLITO DE DATAS (em vez de status do apartamento)
+        // ✅ VERIFICAR CONFLITO DE DATAS
         boolean temConflito = existeConflitoDeDatas(
             reserva.getApartamento().getId(),
             reserva.getDataCheckin(),
@@ -248,34 +280,117 @@ public class ReservaService {
             throw new RuntimeException("Quantidade de hóspedes excede a capacidade do apartamento");
         }
 
-        // Check-in: 14:00, Check-out: 13:00
+        // ═══════════════════════════════════════════════════════════
+        // ✅ LÓGICA DE CHECK-IN: FUTURO vs PASSADO (DATA + HORA)
+        // ═══════════════════════════════════════════════════════════
+
+        LocalDateTime agora = LocalDateTime.now();
+        LocalDateTime checkinRecebido = reserva.getDataCheckin();
+        LocalDateTime checkoutRecebido = reserva.getDataCheckout();
+        
         LocalDateTime checkinFinal;
         LocalDateTime checkoutFinal;
 
-        LocalDate hoje = LocalDate.now();
-        LocalDate diaCheckin = reserva.getDataCheckin().toLocalDate();
+        System.out.println("═══════════════════════════════════════════");
+        System.out.println("📅 PROCESSANDO DATAS DA RESERVA");
+        System.out.println("═══════════════════════════════════════════");
+        System.out.println("⏰ AGORA (servidor):        " + agora);
+        System.out.println("⏰ Check-in recebido:       " + checkinRecebido);
+        System.out.println("⏰ Check-out recebido:      " + checkoutRecebido);
 
-        if (diaCheckin.isAfter(hoje)) {
-            // ✅ PRÉ-RESERVA (check-in futuro) → Usar horário padrão
-            checkinFinal = reserva.getDataCheckin().toLocalDate().atTime(14, 0);
-            checkoutFinal = reserva.getDataCheckout().toLocalDate().atTime(13, 0);
+        // ✅ COMPARAR DATA + HORA COMPLETA (não só a data)
+        if (checkinRecebido.isAfter(agora)) {
+            // ═══════════════════════════════════════════════════════════
+            // ✅ CASO 1: CHECK-IN É NO FUTURO (depois de agora)
+            // ═══════════════════════════════════════════════════════════
             
-            System.out.println("📅 Pré-reserva: usando horários padrão");
-            System.out.println("   Check-in:  " + checkinFinal);
-            System.out.println("   Check-out: " + checkoutFinal);
+            System.out.println("\n📅 TIPO: PRÉ-RESERVA (check-in no futuro)");
+            
+            // ✅ USAR EXATAMENTE AS HORAS QUE O USUÁRIO DIGITOU
+            checkinFinal = checkinRecebido;
+            checkoutFinal = checkoutRecebido;
+            
+            System.out.println("   ✅ Usando HORAS DO FRONTEND (sem alterações)");
+            System.out.println("   📍 Check-in final:  " + checkinFinal);
+            System.out.println("   📍 Check-out final: " + checkoutFinal);
             
         } else {
-            // ✅ CHECK-IN IMEDIATO (hoje ou passado) → Usar AGORA
-            checkinFinal = LocalDateTime.now();
-            checkoutFinal = reserva.getDataCheckout().toLocalDate().atTime(13, 0);
+            // ═══════════════════════════════════════════════════════════
+            // ✅ CASO 2: CHECK-IN JÁ PASSOU (antes ou igual a agora)
+            // ═══════════════════════════════════════════════════════════
             
-            System.out.println("✅ Check-in imediato: usando hora ATUAL");
-            System.out.println("   Check-in:  " + checkinFinal + " (AGORA)");
-            System.out.println("   Check-out: " + checkoutFinal);
+            System.out.println("\n🏨 TIPO: CHECK-IN IMEDIATO (horário já passou)");
+            
+            // ✅ CHECK-IN = AGORA (hora atual do sistema)
+            checkinFinal = agora;
+            
+            // ✅ CHECK-OUT = Mantém o que o usuário digitou
+            checkoutFinal = checkoutRecebido;
+            
+            System.out.println("   ⏰ Check-in ajustado para HORA ATUAL");
+            System.out.println("   📍 Check-in final:  " + checkinFinal);
+            System.out.println("   📍 Check-out final: " + checkoutFinal + " (do frontend)");
         }
+
+        System.out.println("═══════════════════════════════════════════");
 
         reserva.setDataCheckin(checkinFinal);
         reserva.setDataCheckout(checkoutFinal);
+        
+     // ═══════════════════════════════════════════════════════════════
+     // ✅ VALIDAR SE JÁ EXISTE RESERVA PARA ESTE CLIENTE NESTA DATA
+     // ═══════════════════════════════════════════════════════════════
+
+     System.out.println("🔍 Validando duplicidade de reserva...");
+     System.out.println("   Cliente ID: " + reserva.getCliente().getId());
+     System.out.println("   Data check-in: " + checkinFinal);
+
+     LocalDate dataCheckinDate = checkinFinal.toLocalDate();
+     LocalDateTime inicioDia = dataCheckinDate.atStartOfDay();
+     LocalDateTime fimDia = dataCheckinDate.atTime(23, 59, 59);
+
+     System.out.println("   Buscando entre: " + inicioDia + " e " + fimDia);
+
+     List<Reserva> reservasExistentes = reservaRepository
+         .findByClienteIdAndDataCheckinBetween(
+             reserva.getCliente().getId(),
+             inicioDia,
+             fimDia
+         );
+
+     System.out.println("   Reservas encontradas: " + reservasExistentes.size());
+
+     // Filtrar apenas ATIVAS e PRE_RESERVA (ignorar CANCELADAS e FINALIZADAS)
+     long reservasAtivas = reservasExistentes.stream()
+         .filter(r -> {
+             boolean isAtiva = r.getStatus() == StatusReservaEnum.ATIVA 
+                            || r.getStatus() == StatusReservaEnum.PRE_RESERVA;
+             if (isAtiva) {
+                 System.out.println("   ⚠️ Encontrada reserva #" + r.getId() + " - Status: " + r.getStatus());
+             }
+             return isAtiva;
+         })
+         .count();
+
+     System.out.println("   Reservas ativas/pré-reserva: " + reservasAtivas);
+
+     if (reservasAtivas > 0) {
+         String dataFormatada = dataCheckinDate.format(
+             DateTimeFormatter.ofPattern("dd/MM/yyyy")
+         );
+         
+         throw new RuntimeException(
+             "❌ JÁ EXISTE UMA RESERVA PARA ESTE CLIENTE NESTA DATA!\n\n" +
+             "Cliente: " + reserva.getCliente().getNome() + "\n" +
+             "Data: " + dataFormatada + "\n\n" +
+             "Cancele a reserva existente antes de criar uma nova ou escolha outra data."
+         );
+     }
+
+     System.out.println("✅ Validação de duplicidade passou - nenhuma reserva ativa encontrada");
+
+     // ═══════════════════════════════════════════════════════════════
+        
         
         // Calcular quantidade de diárias (dias)
         long dias = ChronoUnit.DAYS.between(
@@ -314,8 +429,11 @@ public class ReservaService {
         reserva.setTotalProduto(BigDecimal.ZERO);
         reserva.setTotalApagar(totalDiaria);
         
-        // ✅✅✅ DEFINIR STATUS BASEADO NA DATA DE CHECK-IN ✅✅✅
-        System.out.println("🔍 DEBUG - COMPARAÇÃO DE DATAS:");
+        // ✅ DEFINIR STATUS: PRE_RESERVA se futuro, ATIVA se presente/passado
+        LocalDate hoje = LocalDate.now();
+        LocalDate diaCheckin = checkinFinal.toLocalDate();
+        
+        System.out.println("🔍 DEBUG - STATUS DA RESERVA:");
         System.out.println("   Data de HOJE: " + hoje);
         System.out.println("   Data Check-in: " + diaCheckin);
         
@@ -324,7 +442,6 @@ public class ReservaService {
             reserva.setStatus(Reserva.StatusReservaEnum.PRE_RESERVA);
             
             System.out.println("📅 Reserva criada como PRÉ-RESERVA (check-in futuro)");
-            System.out.println("   Check-in: " + diaCheckin);
             System.out.println("   ⚠️ Apartamento NÃO será ocupado agora");
             
         } else {
@@ -358,7 +475,17 @@ public class ReservaService {
         // Salvar reserva
         Reserva salva = reservaRepository.save(reserva);
         
-        // ✅ CRIAR LANÇAMENTOS DE DIÁRIAS DIA A DIA
+        // ✅ LANÇAR PRIMEIRA DIÁRIA (se for check-in imediato)
+        if (salva.getStatus() == Reserva.StatusReservaEnum.ATIVA) {
+            try {
+                controleDiariaService.lancarDiaria(salva);
+                System.out.println("💰 Primeira diária LANÇADA");
+            } catch (Exception e) {
+                System.err.println("⚠️ Erro ao lançar primeira diária: " + e.getMessage());
+            }
+        }
+        
+        // ✅ Criar diárias no ExtratoReserva
         criarExtratosDiarias(salva, reserva.getDataCheckin(), reserva.getDataCheckout());
         
         // Criar histórico
@@ -1474,11 +1601,47 @@ public class ReservaService {
 
         System.out.println("💰 Total de descontos: " + descontos.size());
         
+        List<HospedagemHospede> hospedagens = hospedagemHospedeRepository.findByReservaId(reserva.getId());
+
+        if (hospedagens != null && !hospedagens.isEmpty()) {
+            List<ReservaDetalhesDTO.HospedeSimples> hospedesDTO = new ArrayList<>();
+            
+            for (HospedagemHospede h : hospedagens) {
+                ReservaDetalhesDTO.HospedeSimples hs = new ReservaDetalhesDTO.HospedeSimples();
+                hs.setId(h.getId());
+                
+                if (h.getCliente() != null) {
+                    // ✅ TEM CLIENTE VINCULADO (99% dos casos)
+                    hs.setClienteId(h.getCliente().getId());
+                    hs.setNomeCompleto(h.getCliente().getNome());
+                    hs.setCpf(h.getCliente().getCpf());
+                    hs.setTelefone(h.getCliente().getCelular());
+                } else {
+                    // ✅ NÃO TEM CLIENTE (cadastro rápido sem vínculo - caso raro)
+                    // Assumindo que HospedagemHospede pode ter esses campos opcionais
+                    hs.setNomeCompleto("Hóspede sem cadastro");
+                    hs.setCpf(null);
+                    hs.setTelefone(null);
+                }
+                
+                hs.setTitular(h.getTitular());
+                hs.setStatus(h.getStatus() != null ? h.getStatus().name() : "HOSPEDADO");
+                
+                hospedesDTO.add(hs);
+            }
+            
+            dto.setHospedes(hospedesDTO);
+            
+            System.out.println("✅ Hóspedes adicionados ao DTO: " + hospedesDTO.size());
+        } else {
+            System.out.println("⚠️ Nenhum hóspede encontrado para a reserva #" + reserva.getId());
+        }
+
         return dto;
     }
     
     @Transactional
-    public Map<String, Object> processarComandasRapidas(LancamentoRapidoRequest request) {
+    public Map<String, Object> processarComandasRapidas(LancamentoRapidoRequestDTO request) {
         System.out.println("═══════════════════════════════════════════");
         System.out.println("🍽️ PROCESSANDO COMANDAS RÁPIDAS");
         System.out.println("═══════════════════════════════════════════");
@@ -1560,62 +1723,42 @@ public class ReservaService {
     
     @Transactional
     public void excluirPreReserva(Long id) {
-        System.out.println("═══════════════════════════════════════════");
-        System.out.println("🗑️ EXCLUINDO PRÉ-RESERVA #" + id);
-        System.out.println("═══════════════════════════════════════════");
+        System.out.println("🗑️ Excluindo pré-reserva #" + id);
         
         Reserva reserva = reservaRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Reserva não encontrada"));
         
-        // ✅ VALIDAR: Só pode excluir PRÉ-RESERVA
-        if (reserva.getStatus() != Reserva.StatusReservaEnum.PRE_RESERVA) {
-            throw new RuntimeException("Apenas pré-reservas podem ser excluídas. Use o cancelamento para reservas ativas.");
+        // Validar se é realmente uma pré-reserva
+        if (reserva.getStatus() != StatusReservaEnum.PRE_RESERVA) {
+            throw new RuntimeException("Apenas pré-reservas podem ser excluídas. Status atual: " + reserva.getStatus());
         }
         
-        System.out.println("📋 Dados da pré-reserva:");
-        System.out.println("   Cliente: " + reserva.getCliente().getNome());
-        System.out.println("   Apartamento: " + reserva.getApartamento().getNumeroApartamento());
-        System.out.println("   Check-in: " + reserva.getDataCheckin().toLocalDate());
-        System.out.println("   Check-out: " + reserva.getDataCheckout().toLocalDate());
+        Apartamento apartamento = reserva.getApartamento();
         
-        // ✅ EXCLUIR EXTRATOS RELACIONADOS
-        List<ExtratoReserva> extratos = extratoReservaRepository.findByReservaId(id);
-        if (!extratos.isEmpty()) {
-            System.out.println("🗑️ Removendo " + extratos.size() + " extrato(s)...");
-            extratoReservaRepository.deleteAll(extratos);
-        }
+        // ✅ 1. PRIMEIRO - Excluir todos os hóspedes vinculados
+        System.out.println("🗑️ Removendo hóspedes da reserva...");
+        hospedagemHospedeRepository.deleteByReserva(reserva);
         
-        // ✅ EXCLUIR HISTÓRICOS RELACIONADOS
-        List<HistoricoHospede> historicos = historicoHospedeRepository.findByReserva(reserva);
-        if (!historicos.isEmpty()) {
-            System.out.println("🗑️ Removendo " + historicos.size() + " histórico(s)...");
-            historicoHospedeRepository.deleteAll(historicos);
-        }
-        
-        // ✅ EXCLUIR NOTAS DE VENDA RELACIONADAS
-        if (reserva.getNotasVenda() != null && !reserva.getNotasVenda().isEmpty()) {
-            System.out.println("🗑️ Removendo " + reserva.getNotasVenda().size() + " nota(s) de venda...");
-            
-            for (NotaVenda nota : reserva.getNotasVenda()) {
-                if (nota.getItens() != null && !nota.getItens().isEmpty()) {
-                    // Devolver produtos ao estoque (se houver consumo)
-                    for (ItemVenda item : nota.getItens()) {
-                        Produto produto = item.getProduto();
-                        produto.setQuantidade(produto.getQuantidade() + item.getQuantidade());
-                        produtoRepository.save(produto);
-                        System.out.println("   ↩️ Devolvendo ao estoque: " + produto.getNomeProduto() + " x" + item.getQuantidade());
-                    }
-                }
-            }
-            
-            notaVendaRepository.deleteAll(reserva.getNotasVenda());
-        }
-        
-        // ✅ EXCLUIR A RESERVA
+        // ✅ 2. DEPOIS - Excluir a reserva
+        System.out.println("🗑️ Removendo reserva...");
         reservaRepository.delete(reserva);
         
+        // ✅ 3. ATUALIZAR STATUS DO APARTAMENTO
+        // Verificar se tem outras pré-reservas para este apartamento
+        List<Reserva> outrasPreReservas = reservaRepository
+            .findByApartamentoAndStatus(apartamento, StatusReservaEnum.PRE_RESERVA);
+        
+        if (outrasPreReservas.isEmpty()) {
+            // Se não tem mais pré-reservas, voltar para DISPONIVEL
+            apartamento.setStatus(Apartamento.StatusEnum.DISPONIVEL);
+            apartamentoRepository.save(apartamento);
+            System.out.println("✅ Apartamento " + apartamento.getNumeroApartamento() + " liberado");
+        } else {
+            System.out.println("ℹ️ Apartamento " + apartamento.getNumeroApartamento() + 
+                             " ainda tem " + outrasPreReservas.size() + " pré-reserva(s)");
+        }
+        
         System.out.println("✅ Pré-reserva #" + id + " excluída com sucesso!");
-        System.out.println("═══════════════════════════════════════════");
     }
     
     @Transactional
@@ -1793,4 +1936,707 @@ public class ReservaService {
             throw new RuntimeException("Erro ao criar registro financeiro: " + e.getMessage());
         }
     }
+    
+ // ============================================
+ // ✅ GESTÃO DE HÓSPEDES INDIVIDUAIS
+ // ============================================
+
+ /**
+  * Processa a lista de hóspedes e cria registros em HospedagemHospede
+  */
+ @Transactional
+ public void processarHospedes(Reserva reserva, List<HospedeReservaDTO> hospedes) {
+     System.out.println("═══════════════════════════════════════════");
+     System.out.println("👥 PROCESSANDO HÓSPEDES INDIVIDUAIS");
+     System.out.println("═══════════════════════════════════════════");
+     System.out.println("📊 Total de hóspedes a processar: " + hospedes.size());
+     
+     // ✅ VALIDAÇÃO: Primeiro hóspede sempre é titular
+     boolean temTitular = false;
+     for (int i = 0; i < hospedes.size(); i++) {
+         HospedeReservaDTO hospedeDTO = hospedes.get(i);
+         
+         if (i == 0) {
+             // Forçar primeiro como titular
+             hospedeDTO.setTitular(true);
+             temTitular = true;
+         } else {
+             // Demais não podem ser titulares
+             hospedeDTO.setTitular(false);
+         }
+         
+         processarHospede(reserva, hospedeDTO, i + 1);
+     }
+     
+     if (!temTitular) {
+         throw new RuntimeException("É necessário ter um hóspede titular");
+     }
+     
+     System.out.println("✅ " + hospedes.size() + " hóspede(s) processado(s) com sucesso!");
+     System.out.println("═══════════════════════════════════════════");
+ }
+
+ /**
+  * Processa um hóspede individual
+  */
+ private void processarHospede(Reserva reserva, HospedeReservaDTO hospedeDTO, int numero) {
+     System.out.println("\n📝 Processando hóspede #" + numero + ":");
+     
+     Cliente clienteHospede;
+     
+     // ✅ CASO 1: Cadastrar novo cliente rapidamente
+     if (hospedeDTO.getCadastrarNovo() != null && hospedeDTO.getCadastrarNovo()) {
+         System.out.println("   ➕ Criando novo cliente...");
+         
+         // Validar dados mínimos
+         if (hospedeDTO.getNomeCompleto() == null || hospedeDTO.getNomeCompleto().trim().isEmpty()) {
+             throw new RuntimeException("Nome completo é obrigatório para cadastrar novo hóspede");
+         }
+         
+         // Verificar se CPF já existe (se fornecido)
+         if (hospedeDTO.getCpf() != null && !hospedeDTO.getCpf().trim().isEmpty()) {
+             Optional<Cliente> clienteExistente = clienteRepository.findByCpf(hospedeDTO.getCpf());
+             if (clienteExistente.isPresent()) {
+                 throw new RuntimeException("CPF " + hospedeDTO.getCpf() + " já cadastrado para: " + 
+                     clienteExistente.get().getNome());
+             }
+         }
+         
+         clienteHospede = criarClienteRapido(hospedeDTO);
+         System.out.println("   ✅ Cliente criado: " + clienteHospede.getNome() + " (ID: " + clienteHospede.getId() + ")");
+         
+     }
+     // ✅ CASO 2: Usar cliente existente
+     else if (hospedeDTO.getClienteId() != null) {
+         System.out.println("   🔍 Buscando cliente existente ID: " + hospedeDTO.getClienteId());
+         
+         clienteHospede = clienteRepository.findById(hospedeDTO.getClienteId())
+             .orElseThrow(() -> new RuntimeException("Cliente ID " + hospedeDTO.getClienteId() + " não encontrado"));
+         
+         System.out.println("   ✅ Cliente encontrado: " + clienteHospede.getNome());
+         
+     }
+     // ✅ CASO 3: Erro - precisa informar clienteId ou cadastrarNovo
+     else {
+         throw new RuntimeException("Hóspede #" + numero + ": É necessário informar clienteId ou marcar cadastrarNovo=true");
+     }
+     
+     // ✅ CRIAR REGISTRO DE HOSPEDAGEM
+     HospedagemHospede hospedagem = new HospedagemHospede();
+     hospedagem.setReserva(reserva);
+     hospedagem.setCliente(clienteHospede);
+     hospedagem.setDataEntrada(reserva.getDataCheckin());
+     hospedagem.setDataSaida(null); // Será preenchida no checkout individual
+     hospedagem.setTitular(hospedeDTO.getTitular() != null && hospedeDTO.getTitular());
+     
+     // Status baseado no status da reserva
+     if (reserva.getStatus() == Reserva.StatusReservaEnum.ATIVA) {
+         hospedagem.setStatus(HospedagemHospede.StatusHospedeIndividual.HOSPEDADO);
+     } else {
+         hospedagem.setStatus(HospedagemHospede.StatusHospedeIndividual.HOSPEDADO); // Pode ajustar se quiser outro status para pré-reserva
+     }
+     
+     hospedagemHospedeRepository.save(hospedagem);
+     
+     System.out.println("   ✅ Hospedagem registrada: " + 
+         (hospedagem.getTitular() ? "TITULAR" : "Acompanhante"));
+ }
+
+ /**
+  * Cria um cliente com dados mínimos para check-in rápido
+  */
+ private Cliente criarClienteRapido(HospedeReservaDTO hospedeDTO) {
+     Cliente cliente = new Cliente();
+     
+     // Dados obrigatórios
+     cliente.setNome(hospedeDTO.getNomeCompleto());
+     cliente.setDataNascimento(LocalDate.now()); // Placeholder - pode ajustar
+     
+     // Dados opcionais
+     if (hospedeDTO.getCpf() != null && !hospedeDTO.getCpf().trim().isEmpty()) {
+         cliente.setCpf(hospedeDTO.getCpf());
+     }
+     
+     if (hospedeDTO.getTelefone() != null && !hospedeDTO.getTelefone().trim().isEmpty()) {
+         cliente.setCelular(hospedeDTO.getTelefone());
+     }
+     
+     // Campos com valores padrão
+     cliente.setEndereco("");
+     cliente.setCidade("");
+     cliente.setEstado("");
+     cliente.setCep("");
+          cliente.setCreditoAprovado(false);
+     
+     return clienteRepository.save(cliente);
+ }
+
+ /**
+  * Lista hóspedes de uma reserva
+  */
+ public List<HospedagemHospede> listarHospedesPorReserva(Long reservaId) {
+     return hospedagemHospedeRepository.findByReservaId(reservaId);
+ }
+ 
+//============================================
+//✅ CHECKOUT PARCIAL
+//============================================
+
+/**
+* Realiza checkout parcial de um hóspede específico
+*/
+@Transactional
+public Reserva checkoutParcial(Long reservaId, CheckoutParcialRequestDTO dto) {
+  System.out.println("═══════════════════════════════════════════");
+  System.out.println("👋 CHECKOUT PARCIAL");
+  System.out.println("═══════════════════════════════════════════");
+  
+  // 1️⃣ BUSCAR RESERVA
+  Reserva reserva = reservaRepository.findById(reservaId)
+      .orElseThrow(() -> new RuntimeException("Reserva não encontrada"));
+  
+  // ✅ VALIDAÇÃO: Reserva deve estar ATIVA
+  if (reserva.getStatus() != Reserva.StatusReservaEnum.ATIVA) {
+      throw new RuntimeException("Apenas reservas ATIVAS permitem checkout parcial");
+  }
+  
+  // 2️⃣ BUSCAR REGISTRO DE HOSPEDAGEM
+  HospedagemHospede hospedagem = hospedagemHospedeRepository.findById(dto.getHospedagemHospedeId())
+      .orElseThrow(() -> new RuntimeException("Hospedagem não encontrada"));
+  
+  // ✅ VALIDAÇÃO: Deve ser da mesma reserva
+  if (!hospedagem.getReserva().getId().equals(reservaId)) {
+      throw new RuntimeException("Hóspede não pertence a esta reserva");
+  }
+  
+  // ✅ VALIDAÇÃO: Não pode fazer checkout duas vezes
+  if (hospedagem.getStatus() == HospedagemHospede.StatusHospedeIndividual.CHECKOUT_REALIZADO) {
+      throw new RuntimeException("Este hóspede já realizou checkout");
+  }
+  
+  // ✅ VALIDAÇÃO: Não pode ser o ÚLTIMO hóspede
+  long hospedesAtivos = hospedagemHospedeRepository.findByReservaId(reservaId).stream()
+      .filter(h -> h.getStatus() == HospedagemHospede.StatusHospedeIndividual.HOSPEDADO)
+      .count();
+  
+  if (hospedesAtivos <= 1) {
+      throw new RuntimeException("Não é possível fazer checkout parcial do último hóspede. Use o checkout completo da reserva.");
+  }
+  
+  System.out.println("📋 Hóspede: " + hospedagem.getCliente().getNome());
+  System.out.println("   Titular: " + (hospedagem.getTitular() ? "SIM" : "NÃO"));
+  System.out.println("   Hóspedes ativos antes: " + hospedesAtivos);
+  
+  // 3️⃣ MARCAR CHECKOUT DO HÓSPEDE
+  LocalDateTime dataHoraSaida = dto.getDataHoraSaida() != null ? 
+      dto.getDataHoraSaida() : LocalDateTime.now();
+  
+  hospedagem.setDataSaida(dataHoraSaida);
+  hospedagem.setStatus(HospedagemHospede.StatusHospedeIndividual.CHECKOUT_REALIZADO);
+  hospedagemHospedeRepository.save(hospedagem);
+  
+  System.out.println("✅ Checkout marcado para: " + dataHoraSaida);
+  
+  // 4️⃣ SE ERA TITULAR, PROMOVER PRÓXIMO HÓSPEDE
+  if (hospedagem.getTitular()) {
+      List<HospedagemHospede> hospedesRestantes = hospedagemHospedeRepository.findByReservaId(reservaId).stream()
+          .filter(h -> h.getStatus() == HospedagemHospede.StatusHospedeIndividual.HOSPEDADO)
+          .collect(Collectors.toList());
+      
+      if (!hospedesRestantes.isEmpty()) {
+          HospedagemHospede novoTitular = hospedesRestantes.get(0);
+          novoTitular.setTitular(true);
+          hospedagemHospedeRepository.save(novoTitular);
+          
+          System.out.println("👑 Novo titular: " + novoTitular.getCliente().getNome());
+      }
+  }
+  
+  // 5️⃣ ATUALIZAR QUANTIDADE DE HÓSPEDES DA RESERVA
+  Integer quantidadeAnterior = reserva.getQuantidadeHospede();
+  
+  Integer quantidadeNova = (int) hospedagemHospedeRepository.findByReservaId(reservaId).stream()
+		    .filter(h -> h.getStatus() == HospedagemHospede.StatusHospedeIndividual.HOSPEDADO)
+		    .count();
+  
+  reserva.setQuantidadeHospede(quantidadeNova);
+  
+  System.out.println("👥 Quantidade de hóspedes: " + quantidadeAnterior + " → " + quantidadeNova);
+  
+  // 6️⃣ BUSCAR NOVA DIÁRIA (para quantidade menor)
+  TipoApartamento tipoApartamento = reserva.getApartamento().getTipoApartamento();
+  
+  Diaria novaDiaria = diariaRepository.findByTipoApartamentoAndQuantidade(tipoApartamento, quantidadeNova)
+      .orElseThrow(() -> new RuntimeException(
+          String.format("Nenhuma diária cadastrada para tipo '%s' com %d hóspede(s)", 
+              tipoApartamento.getTipo(), 
+              quantidadeNova)
+      ));
+  
+  Diaria diariaAntiga = reserva.getDiaria();
+  BigDecimal valorAntigo = diariaAntiga.getValor();
+  BigDecimal valorNovo = novaDiaria.getValor();
+  BigDecimal diferenca = valorNovo.subtract(valorAntigo);
+  
+  reserva.setDiaria(novaDiaria);
+  
+  System.out.println("💰 Valor diária: R$ " + valorAntigo + " → R$ " + valorNovo);
+  System.out.println("   Diferença: R$ " + diferenca);
+  
+  // 7️⃣ CANCELAR DIÁRIAS LANCADAS NÃO FECHADAS
+  if (controleDiariaService != null) {
+      cancelarDiariasNaoFechadasCheckoutParcial(reserva, hospedagem.getCliente().getNome());
+  }
+  
+  // 8️⃣ AJUSTAR DIÁRIAS FUTURAS NO EXTRATO
+  LocalDateTime dataInicioAjuste = dataHoraSaida.toLocalDate().plusDays(1).atStartOfDay();
+  ajustarDiariasFuturas(reserva, dataInicioAjuste, quantidadeAnterior, quantidadeNova);
+  
+  // 9️⃣ RECALCULAR TOTAIS
+  recalcularTotaisReserva(reserva);
+  
+  // 🔟 SALVAR RESERVA
+  Reserva reservaSalva = reservaRepository.save(reserva);
+  
+  // 1️⃣1️⃣ CRIAR HISTÓRICO
+  HistoricoHospede historico = new HistoricoHospede();
+  historico.setReserva(reservaSalva);
+  historico.setDataHora(LocalDateTime.now());
+  historico.setQuantidadeAnterior(quantidadeAnterior);
+  historico.setQuantidadeNova(quantidadeNova);
+  historico.setMotivo(String.format(
+      "Checkout parcial - Hóspede: %s - Data: %s - Hóspedes restantes: %d - %s",
+      hospedagem.getCliente().getNome(),
+      dataHoraSaida.toLocalDate(),
+      quantidadeNova,
+      dto.getMotivo() != null && !dto.getMotivo().isEmpty() ? dto.getMotivo() : "Sem motivo informado"
+  ));
+  
+  historicoHospedeRepository.save(historico);
+  
+  System.out.println("═══════════════════════════════════════════");
+  System.out.println("✅ CHECKOUT PARCIAL CONCLUÍDO!");
+  System.out.println("═══════════════════════════════════════════");
+  
+  return reservaSalva;
+}
+
+/**
+* Cancela diárias LANCADAS (ainda não fechadas) quando há checkout parcial
+*/
+private void cancelarDiariasNaoFechadasCheckoutParcial(Reserva reserva, String nomeHospede) {
+  try {
+      List<ControleDiaria> diariasLancadas = controleDiariaService.buscarDiariasLancadasPorReserva(reserva.getId());
+      
+      for (ControleDiaria controle : diariasLancadas) {
+          String motivo = String.format("Checkout parcial de %s", nomeHospede);
+          controleDiariaService.cancelarDiaria(controle, motivo);
+          
+          System.out.println("❌ Diária LANCADA cancelada: " + controle.getDataLancamento().toLocalDate());
+      }
+      
+      System.out.println("✅ Total de " + diariasLancadas.size() + " diária(s) LANCADA(s) cancelada(s)");
+      
+  } catch (Exception e) {
+      System.err.println("⚠️ Erro ao cancelar diárias lançadas: " + e.getMessage());
+      // Não bloqueia o checkout parcial
+  }
+}
+
+@Transactional
+public Reserva transferirHospede(TransferenciaHospedeDTO dto) {
+    
+    System.out.println("\n🔍 ETAPA 1: VALIDAÇÕES INICIAIS");
+    System.out.println("════════════════════════════════════════");
+    
+    // ====================================
+    // VALIDAÇÕES INICIAIS
+    // ====================================
+    
+    // 1. Buscar o hóspede
+    HospedagemHospede hospede = hospedagemHospedeRepository.findById(dto.getHospedeId())
+        .orElseThrow(() -> new IllegalArgumentException("Hóspede não encontrado"));
+    
+    System.out.println("✅ Hóspede encontrado: " + hospede.getCliente().getNome());
+    System.out.println("   Status atual: " + hospede.getStatus());
+    System.out.println("   É titular: " + (hospede.getTitular() ? "SIM" : "NÃO")); // ⭐ LOG ADICIONADO
+    
+    // 2. Validar se está hospedado
+    if (hospede.getStatus() != HospedagemHospede.StatusHospedeIndividual.HOSPEDADO) {
+        throw new IllegalArgumentException("Hóspede não está com status HOSPEDADO");
+    }
+    
+    // 3. Buscar reserva origem
+    Reserva reservaOrigem = hospede.getReserva();
+    if (reservaOrigem == null) {
+        throw new IllegalArgumentException("Reserva de origem não encontrada");
+    }
+    
+    System.out.println("✅ Reserva origem: #" + reservaOrigem.getId());
+    System.out.println("   Apartamento: " + reservaOrigem.getApartamento().getNumeroApartamento());
+    System.out.println("   Hóspedes na reserva: " + reservaOrigem.getQuantidadeHospede());
+    
+    // 4. Buscar apartamento destino
+    Apartamento apartamentoDestino = apartamentoRepository.findById(dto.getApartamentoDestinoId())
+        .orElseThrow(() -> new IllegalArgumentException("Apartamento destino não encontrado"));
+    
+    System.out.println("✅ Apartamento destino: " + apartamentoDestino.getNumeroApartamento());
+    System.out.println("   Capacidade: " + apartamentoDestino.getCapacidade());
+    System.out.println("   Status atual: " + apartamentoDestino.getStatus());
+    
+    // 5. Validar datas
+    if (dto.getDataCheckoutNovo().isBefore(dto.getDataCheckinNovo()) || 
+        dto.getDataCheckoutNovo().isEqual(dto.getDataCheckinNovo())) {
+        throw new IllegalArgumentException("Data de checkout deve ser posterior ao check-in");
+    }
+    
+    // 6. Verificar se destino é diferente da origem
+    if (reservaOrigem.getApartamento().getId().equals(apartamentoDestino.getId())) {
+        throw new IllegalArgumentException("Apartamento destino não pode ser o mesmo da origem");
+    }
+    
+    // ====================================
+    // VERIFICAR STATUS DO DESTINO
+    // ====================================
+    
+    System.out.println("\n🔍 ETAPA 2: VERIFICANDO APARTAMENTO DESTINO");
+    System.out.println("════════════════════════════════════════");
+    
+    // Buscar reservas ATIVAS no apartamento destino
+    List<Reserva> reservasDestino = reservaRepository.findByApartamento(apartamentoDestino)
+        .stream()
+        .filter(r -> r.getStatus() == StatusReservaEnum.ATIVA)
+        .collect(Collectors.toList());
+    
+    boolean destinoVazio = reservasDestino.isEmpty();
+    Reserva reservaDestino = null;
+    
+    if (destinoVazio) {
+        System.out.println("✅ Apartamento destino está VAZIO");
+    } else {
+        reservaDestino = reservasDestino.get(0);
+        System.out.println("⚠️ Apartamento destino está OCUPADO");
+        System.out.println("   Reserva #" + reservaDestino.getId());
+        System.out.println("   Hóspedes atuais: " + reservaDestino.getQuantidadeHospede());
+        System.out.println("   Capacidade disponível: " + 
+            (apartamentoDestino.getCapacidade() - reservaDestino.getQuantidadeHospede()));
+        
+        // Validar se tem vaga
+        if (reservaDestino.getQuantidadeHospede() >= apartamentoDestino.getCapacidade()) {
+            throw new IllegalArgumentException("Apartamento destino está na capacidade máxima");
+        }
+    }
+    
+    // ====================================
+    // VERIFICAR SE HÓSPEDE ESTÁ SOZINHO
+    // ====================================
+    
+    System.out.println("\n🔍 ETAPA 3: ANALISANDO RESERVA ORIGEM");
+    System.out.println("════════════════════════════════════════");
+    
+    // Contar hóspedes HOSPEDADOS na reserva origem
+    long hospedesHospedadosOrigem = hospedagemHospedeRepository
+        .findByReserva(reservaOrigem).stream()
+        .filter(h -> h.getStatus() == HospedagemHospede.StatusHospedeIndividual.HOSPEDADO)
+        .count();
+    
+    boolean hospedeSozinho = (hospedesHospedadosOrigem == 1);
+    boolean transferirDespesas = hospedeSozinho && destinoVazio;
+    
+    System.out.println("👥 Hóspedes HOSPEDADOS na origem: " + hospedesHospedadosOrigem);
+    System.out.println("🏠 Hóspede está sozinho? " + (hospedeSozinho ? "SIM" : "NÃO"));
+    System.out.println("💰 Vai transferir despesas? " + (transferirDespesas ? "SIM" : "NÃO"));
+    
+    // ====================================
+    // PROCESSAR APARTAMENTO ORIGEM
+    // ====================================
+    
+    System.out.println("\n🔄 ETAPA 4: PROCESSANDO APARTAMENTO ORIGEM");
+    System.out.println("════════════════════════════════════════");
+    
+    // Fazer checkout do hóspede
+    hospede.setStatus(HospedagemHospede.StatusHospedeIndividual.CHECKOUT_REALIZADO);
+    hospede.setDataSaida(LocalDateTime.now());
+    hospedagemHospedeRepository.save(hospede);
+    
+    System.out.println("✅ Hóspede com status CHECKOUT");
+    
+    if (hospedeSozinho) {
+        // CASO 1: Hóspede estava sozinho
+        System.out.println("📦 CASO 1: Hóspede estava SOZINHO");
+        
+        // Finalizar reserva origem
+        reservaOrigem.setStatus(StatusReservaEnum.FINALIZADA);
+        reservaOrigem.setDataCheckoutReal(LocalDateTime.now());
+        reservaRepository.save(reservaOrigem);
+        
+        System.out.println("✅ Reserva origem #" + reservaOrigem.getId() + " → FINALIZADA");
+        
+        // Apartamento para limpeza
+        reservaOrigem.getApartamento().setStatus(StatusEnum.LIMPEZA);
+        apartamentoRepository.save(reservaOrigem.getApartamento());
+        
+        System.out.println("✅ Apartamento " + reservaOrigem.getApartamento().getNumeroApartamento() + 
+                         " → LIMPEZA");
+        
+    } else {
+        // CASO 2: Hóspede estava com outros
+        System.out.println("📦 CASO 2: Hóspede estava COMPARTILHADO");
+        
+        // Diminuir quantidade
+        int novaQuantidade = reservaOrigem.getQuantidadeHospede() - 1;
+        reservaOrigem.setQuantidadeHospede(novaQuantidade);
+        
+        System.out.println("👥 Quantidade na origem: " + 
+            (reservaOrigem.getQuantidadeHospede() + 1) + " → " + novaQuantidade);
+        
+        // ══════════════════════════════════════════════════════════════
+        // ⭐⭐⭐ CORREÇÃO DO BUG DO TITULAR ⭐⭐⭐
+        // ══════════════════════════════════════════════════════════════
+        if (hospede.getTitular()) {
+            System.out.println("\n👑 ATENÇÃO: Hóspede transferido ERA o TITULAR!");
+            System.out.println("   Promovendo próximo hóspede...");
+            
+            // Buscar hóspedes restantes HOSPEDADOS
+            List<HospedagemHospede> hospedesRestantes = hospedagemHospedeRepository
+                .findByReserva(reservaOrigem)
+                .stream()
+                .filter(h -> h.getStatus() == HospedagemHospede.StatusHospedeIndividual.HOSPEDADO)
+                .collect(Collectors.toList());
+            
+            if (!hospedesRestantes.isEmpty()) {
+                // Promover o primeiro hóspede restante
+                HospedagemHospede novoTitular = hospedesRestantes.get(0);
+                
+                // Definir como titular
+                novoTitular.setTitular(true);
+                hospedagemHospedeRepository.save(novoTitular);
+                
+                // ✅ ATUALIZAR O CLIENTE DA RESERVA
+                reservaOrigem.setCliente(novoTitular.getCliente());
+                
+                System.out.println("   ✅ Novo titular: " + novoTitular.getCliente().getNome());
+                System.out.println("   ✅ Cliente da reserva atualizado!");
+            } else {
+                System.out.println("   ⚠️ AVISO: Não há outros hóspedes para promover");
+            }
+        }
+        // ══════════════════════════════════════════════════════════════
+        
+        // Buscar nova diária para a quantidade reduzida
+        Optional<Diaria> novaDiariaOrigem = diariaRepository
+            .findByTipoApartamentoAndQuantidade(
+                reservaOrigem.getApartamento().getTipoApartamento(),
+                novaQuantidade
+            );
+        
+        if (novaDiariaOrigem.isPresent()) {
+            reservaOrigem.setDiaria(novaDiariaOrigem.get());
+            System.out.println("💰 Nova diária origem: R$ " + novaDiariaOrigem.get().getValor());
+            
+            // Recalcular diárias futuras (apenas as PENDENTES)
+            List<ExtratoReserva> extratosOrigem = extratoReservaRepository.findByReserva(reservaOrigem);
+            for (ExtratoReserva extrato : extratosOrigem) {
+                if (extrato.getStatusLancamento() == StatusLancamentoEnum.PENDENTE) {
+                    extrato.setValorUnitario(novaDiariaOrigem.get().getValor());
+                    extrato.setTotalLancamento(novaDiariaOrigem.get().getValor());
+                    extratoReservaRepository.save(extrato);
+                }
+            }
+            System.out.println("✅ Diárias futuras recalculadas");
+        }
+        
+        // Registrar histórico
+        HistoricoHospede hist = new HistoricoHospede();
+        hist.setReserva(reservaOrigem);
+        hist.setQuantidadeAnterior(reservaOrigem.getQuantidadeHospede() + 1);
+        hist.setQuantidadeNova(novaQuantidade);
+        hist.setMotivo("Transferência de hóspede " + hospede.getCliente().getNome());
+        hist.setDataHora(LocalDateTime.now());
+        historicoHospedeRepository.save(hist);
+        
+        reservaRepository.save(reservaOrigem);
+        
+        System.out.println("✅ Reserva origem atualizada");
+    }
+    
+    // ====================================
+    // PROCESSAR APARTAMENTO DESTINO
+    // ====================================
+    
+    System.out.println("\n🔄 ETAPA 5: PROCESSANDO APARTAMENTO DESTINO");
+    System.out.println("════════════════════════════════════════");
+    
+    Reserva reservaFinal;
+    
+    if (destinoVazio) {
+        // CASO A: Destino está vazio - CRIAR NOVA RESERVA
+        System.out.println("📦 CASO A: Destino VAZIO - Criando nova reserva");
+        
+        Reserva novaReserva = new Reserva();
+        novaReserva.setCliente(hospede.getCliente());
+        novaReserva.setApartamento(apartamentoDestino);
+        novaReserva.setQuantidadeHospede(1);
+        novaReserva.setDataCheckin(dto.getDataCheckinNovo().atTime(LocalTime.now()));
+        novaReserva.setDataCheckout(dto.getDataCheckoutNovo().atTime(13, 0));
+        novaReserva.setStatus(StatusReservaEnum.ATIVA);
+        
+        // Buscar diária para 1 pessoa
+        Optional<Diaria> diariaDestino = diariaRepository
+            .findByTipoApartamentoAndQuantidade(apartamentoDestino.getTipoApartamento(), 1);
+        
+        if (!diariaDestino.isPresent()) {
+            throw new IllegalArgumentException("Diária não encontrada para o tipo de apartamento destino");
+        }
+        
+        novaReserva.setDiaria(diariaDestino.get());
+        
+        // Calcular totais
+        long dias = ChronoUnit.DAYS.between(
+            dto.getDataCheckinNovo(),
+            dto.getDataCheckoutNovo()
+        );
+        
+        BigDecimal valorDiaria = diariaDestino.get().getValor();
+        BigDecimal totalDiarias = valorDiaria.multiply(BigDecimal.valueOf(dias));
+        
+        novaReserva.setQuantidadeDiaria((int) dias);
+        novaReserva.setTotalDiaria(totalDiarias);
+        novaReserva.setTotalHospedagem(totalDiarias);
+        novaReserva.setTotalApagar(totalDiarias);
+        novaReserva.setTotalRecebido(BigDecimal.ZERO);
+        novaReserva.setTotalProduto(BigDecimal.ZERO);
+        
+        // Salvar nova reserva
+        reservaFinal = reservaRepository.save(novaReserva);
+        
+        System.out.println("✅ Nova reserva criada: #" + reservaFinal.getId());
+        System.out.println("   Dias: " + dias);
+        System.out.println("   Valor diária: R$ " + valorDiaria);
+        System.out.println("   Total: R$ " + totalDiarias);
+        
+        // Criar nota de venda
+        NotaVenda nota = new NotaVenda();
+        nota.setReserva(reservaFinal);
+        nota.setDataHoraVenda(LocalDateTime.now());
+        nota.setStatus(NotaVenda.Status.ABERTA);
+        nota.setTipoVenda(NotaVenda.TipoVendaEnum.APARTAMENTO);
+        nota.setTotal(BigDecimal.ZERO);
+        notaVendaRepository.save(nota);
+        
+        // Atualizar apartamento
+        apartamentoDestino.setStatus(StatusEnum.OCUPADO);
+        apartamentoRepository.save(apartamentoDestino);
+        
+        System.out.println("✅ Apartamento " + apartamentoDestino.getNumeroApartamento() + 
+                         " → OCUPADO");
+        
+        // Adicionar hóspede na nova reserva
+        HospedagemHospede novoHospede = new HospedagemHospede();
+        novoHospede.setReserva(reservaFinal);
+        novoHospede.setCliente(hospede.getCliente());
+        novoHospede.setDataEntrada(LocalDateTime.now());
+        novoHospede.setStatus(HospedagemHospede.StatusHospedeIndividual.HOSPEDADO);
+        novoHospede.setTitular(true);
+        hospedagemHospedeRepository.save(novoHospede);
+        
+        System.out.println("✅ Hóspede adicionado na nova reserva como TITULAR");
+        
+        // TRANSFERIR DESPESAS (se aplicável)
+        if (transferirDespesas) {
+            System.out.println("\n💰 TRANSFERINDO DESPESAS");
+            System.out.println("════════════════════════════════════════");
+            
+            int despesasTransferidas = 0;
+            
+            List<ExtratoReserva> extratosOrigemTransferir = extratoReservaRepository.findByReserva(reservaOrigem);
+            for (ExtratoReserva extrato : extratosOrigemTransferir)  {
+                // Criar novo extrato na reserva destino
+                ExtratoReserva novoExtrato = new ExtratoReserva();
+                novoExtrato.setReserva(reservaFinal);
+                novoExtrato.setDescricao(extrato.getDescricao() + " (Transferido)");
+                novoExtrato.setQuantidade(extrato.getQuantidade());
+                novoExtrato.setValorUnitario(extrato.getValorUnitario());
+                novoExtrato.setTotalLancamento(extrato.getTotalLancamento());
+                novoExtrato.setDataHoraLancamento(LocalDateTime.now());
+                novoExtrato.setStatusLancamento(extrato.getStatusLancamento());
+                novoExtrato.setNotaVendaId(extrato.getNotaVendaId());
+                
+                extratoReservaRepository.save(novoExtrato);
+                despesasTransferidas++;
+            }
+            
+            System.out.println("✅ " + despesasTransferidas + " despesa(s) transferida(s)");
+            
+            // Atualizar totais da nova reserva
+            BigDecimal totalProdutos = reservaOrigem.getTotalProduto();
+            reservaFinal.setTotalProduto(totalProdutos);
+            reservaFinal.setTotalApagar(reservaFinal.getTotalDiaria().add(totalProdutos));
+            reservaRepository.save(reservaFinal);
+        }
+        
+    } else {
+        // CASO B: Destino está ocupado - ADICIONAR À RESERVA EXISTENTE
+        System.out.println("📦 CASO B: Destino OCUPADO - Adicionando à reserva existente");
+        
+        // Aumentar quantidade
+        int novaQuantidadeDestino = reservaDestino.getQuantidadeHospede() + 1;
+        reservaDestino.setQuantidadeHospede(novaQuantidadeDestino);
+        
+        System.out.println("👥 Quantidade no destino: " + 
+            (reservaDestino.getQuantidadeHospede() - 1) + " → " + novaQuantidadeDestino);
+        
+        // Buscar nova diária
+        Optional<Diaria> novaDiariaDestino = diariaRepository
+            .findByTipoApartamentoAndQuantidade(
+                apartamentoDestino.getTipoApartamento(),
+                novaQuantidadeDestino
+            );
+        
+        if (novaDiariaDestino.isPresent()) {
+            reservaDestino.setDiaria(novaDiariaDestino.get());
+            System.out.println("💰 Nova diária destino: R$ " + novaDiariaDestino.get().getValor());
+            
+            // Recalcular diárias futuras (apenas PENDENTES)
+            List<ExtratoReserva> extratosDestino = extratoReservaRepository.findByReserva(reservaDestino);
+            for (ExtratoReserva extrato : extratosDestino) {
+                if (extrato.getStatusLancamento() == ExtratoReserva.StatusLancamentoEnum.PENDENTE) {
+                    extrato.setValorUnitario(novaDiariaDestino.get().getValor());
+                    extrato.setTotalLancamento(novaDiariaDestino.get().getValor());
+                    extratoReservaRepository.save(extrato);
+                }
+            }
+            System.out.println("✅ Diárias futuras recalculadas");
+        }
+        
+        // Registrar histórico
+        HistoricoHospede hist = new HistoricoHospede();
+        hist.setReserva(reservaDestino);
+        hist.setQuantidadeAnterior(reservaDestino.getQuantidadeHospede() - 1);
+        hist.setQuantidadeNova(novaQuantidadeDestino);
+        hist.setMotivo("Recebeu transferência de hóspede " + hospede.getCliente().getNome());
+        hist.setDataHora(LocalDateTime.now());
+        historicoHospedeRepository.save(hist);
+        
+        reservaRepository.save(reservaDestino);
+        
+        // Adicionar hóspede
+        HospedagemHospede novoHospede = new HospedagemHospede();
+        novoHospede.setReserva(reservaDestino);
+        novoHospede.setCliente(hospede.getCliente());
+        novoHospede.setDataEntrada(LocalDateTime.now());
+        novoHospede.setStatus(HospedagemHospede.StatusHospedeIndividual.HOSPEDADO);
+        novoHospede.setTitular(false); // Não é titular
+        hospedagemHospedeRepository.save(novoHospede);
+        
+        System.out.println("✅ Hóspede adicionado na reserva existente");
+        
+        reservaFinal = reservaDestino;
+    }
+    
+    System.out.println("\n✅ TRANSFERÊNCIA CONCLUÍDA COM SUCESSO!");
+    System.out.println("════════════════════════════════════════");
+    
+    return reservaFinal;
+   }    
 }

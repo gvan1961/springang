@@ -95,7 +95,7 @@ public class ApartamentoService {
     }
     
     public List<ApartamentoResponseDTO> listarTodosDTO() {
-        return apartamentoRepository.findAll().stream()
+        return apartamentoRepository.findAllByOrderByNumeroApartamentoAsc().stream()
             .map(this::converterParaDTO)
             .collect(Collectors.toList());
     }
@@ -345,27 +345,71 @@ public class ApartamentoService {
         dto.setTv(apartamento.getTv());
         dto.setStatus(apartamento.getStatus());
 
-        // Se ocupado, buscar reserva ativa
+        // ✅ SEMPRE BUSCAR RESERVA ATIVA OU PRÉ-RESERVA
+        Optional<Reserva> reservaEncontrada = Optional.empty();
+        
+        // 1️⃣ Se OCUPADO, buscar ATIVA primeiro
         if (apartamento.getStatus() == Apartamento.StatusEnum.OCUPADO) {
-        	List<Reserva> reservasAtivas = reservaRepository
-        		    .findByApartamentoAndStatusOrderByDataCheckinDesc(apartamento, Reserva.StatusReservaEnum.ATIVA);
-        		Optional<Reserva> reservaAtiva = reservasAtivas.isEmpty() ? Optional.empty() : Optional.of(reservasAtivas.get(0));
+            List<Reserva> reservasAtivas = reservaRepository
+                .findByApartamentoAndStatusOrderByDataCheckinDesc(apartamento, Reserva.StatusReservaEnum.ATIVA);
+            reservaEncontrada = reservasAtivas.isEmpty() ? Optional.empty() : Optional.of(reservasAtivas.get(0));
+        }
+        
+        // 2️⃣ Se PRE_RESERVA, buscar PRE_RESERVA
+        else if (apartamento.getStatus() == Apartamento.StatusEnum.PRE_RESERVA) {
+            List<Reserva> preReservas = reservaRepository
+                .findByApartamentoAndStatusOrderByDataCheckinDesc(apartamento, Reserva.StatusReservaEnum.PRE_RESERVA);
+            reservaEncontrada = preReservas.isEmpty() ? Optional.empty() : Optional.of(preReservas.get(0));
+        }
 
-            if (reservaAtiva.isPresent()) {
-                Reserva reserva = reservaAtiva.get();
-
-                ApartamentoResponseDTO.ReservaAtiva dadosReserva = new ApartamentoResponseDTO.ReservaAtiva();
-                dadosReserva.setReservaId(reserva.getId());
-                dadosReserva.setNomeHospede(reserva.getCliente().getNome());
-                dadosReserva.setQuantidadeHospede(reserva.getQuantidadeHospede());
-                dadosReserva.setDataCheckin(reserva.getDataCheckin());
-                dadosReserva.setDataCheckout(reserva.getDataCheckout());
-
-                dto.setReservaAtiva(dadosReserva);
-
-                System.out.println("📋 Reserva ativa encontrada no apartamento " + 
-                                 apartamento.getNumeroApartamento());
+        // 3️⃣ ✅ NOVO - BUSCAR PRÉ-RESERVAS FUTURAS (independente do status do apartamento)
+        // Se não encontrou reserva ativa acima OU se queremos também mostrar pré-reservas futuras
+        List<Reserva> preReservasFuturas = reservaRepository
+            .findByApartamentoAndStatusOrderByDataCheckinDesc(apartamento, Reserva.StatusReservaEnum.PRE_RESERVA);
+        
+        // Se encontrou pré-reservas E (não tem reserva ativa OU queremos priorizar mostrar a pré-reserva no filtro)
+        if (!preReservasFuturas.isEmpty()) {
+            // Adiciona informação da pré-reserva ao DTO (como campo adicional)
+            Reserva preReserva = preReservasFuturas.get(0);
+            
+            // Se não tinha reserva ativa, usa a pré-reserva
+            if (reservaEncontrada.isEmpty()) {
+                reservaEncontrada = Optional.of(preReserva);
             }
+            // Se tinha reserva ativa mas queremos também retornar a pré-reserva
+            else {
+                // Criar um campo adicional para pré-reserva futura
+                ApartamentoResponseDTO.ReservaAtiva dadosPreReserva = new ApartamentoResponseDTO.ReservaAtiva();
+                dadosPreReserva.setReservaId(preReserva.getId());
+                dadosPreReserva.setNomeHospede(preReserva.getCliente().getNome());
+                dadosPreReserva.setQuantidadeHospede(preReserva.getQuantidadeHospede());
+                dadosPreReserva.setDataCheckin(preReserva.getDataCheckin());
+                dadosPreReserva.setDataCheckout(preReserva.getDataCheckout());
+                dadosPreReserva.setStatus(preReserva.getStatus().name());
+                
+                // ✅ IMPORTANTE: Criar campo "preReservaFutura" no DTO
+                dto.setPreReservaFutura(dadosPreReserva);
+            }
+        }
+
+        // ✅ Se encontrou alguma reserva, adicionar ao DTO
+        if (reservaEncontrada.isPresent()) {
+            Reserva reserva = reservaEncontrada.get();
+
+            ApartamentoResponseDTO.ReservaAtiva dadosReserva = new ApartamentoResponseDTO.ReservaAtiva();
+            dadosReserva.setReservaId(reserva.getId());
+            dadosReserva.setNomeHospede(reserva.getCliente().getNome());
+            dadosReserva.setQuantidadeHospede(reserva.getQuantidadeHospede());
+            dadosReserva.setDataCheckin(reserva.getDataCheckin());
+            dadosReserva.setDataCheckout(reserva.getDataCheckout());
+            dadosReserva.setStatus(reserva.getStatus().name());
+
+            dto.setReservaAtiva(dadosReserva);
+
+            System.out.println("📋 Reserva encontrada no apartamento " + 
+                             apartamento.getNumeroApartamento() + 
+                             " - Status Apt: " + apartamento.getStatus() +
+                             " - Status Reserva: " + reserva.getStatus());
         }
 
         return dto;

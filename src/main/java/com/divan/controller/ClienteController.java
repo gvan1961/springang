@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/clientes")
@@ -40,6 +39,10 @@ public class ClienteController {
             cliente.setEstado(dto.getEstado());
             cliente.setDataNascimento(dto.getDataNascimento());
             cliente.setCreditoAprovado(dto.getCreditoAprovado() != null ? dto.getCreditoAprovado() : false);
+            cliente.setAutorizadoJantar(dto.getAutorizadoJantar() != null ? dto.getAutorizadoJantar() : true);
+            
+            // ⭐ ADICIONAR TIPO CLIENTE
+            cliente.setTipoCliente(dto.getTipoCliente() != null ? dto.getTipoCliente() : Cliente.TipoCliente.HOSPEDE);
             
             Cliente clienteSalvo = clienteService.salvar(cliente, dto.getEmpresaId());
             return ResponseEntity.status(HttpStatus.CREATED).body(clienteSalvo);
@@ -66,11 +69,6 @@ public class ClienteController {
         return cliente.map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
     }
     
-   // @GetMapping("/buscar")
-   // public ResponseEntity<List<Cliente>> buscarPorNome(@RequestParam String nome) {
-   //     List<Cliente> clientes = clienteService.buscarPorNome(nome);
-   //     return ResponseEntity.ok(clientes);
-   // }
     @GetMapping("/buscar")
     public ResponseEntity<List<ClienteDTO>> buscar(@RequestParam String termo) {
         List<ClienteDTO> clientes = clienteService.buscarPorTermo(termo);
@@ -99,8 +97,6 @@ public class ClienteController {
         return ResponseEntity.ok().build();
     }
     
-    
-    
     @GetMapping("/empresa/{empresaId}")
     public ResponseEntity<List<Cliente>> buscarPorEmpresa(@PathVariable Long empresaId) {
         List<Cliente> clientes = clienteService.buscarPorEmpresa(empresaId);
@@ -121,6 +117,10 @@ public class ClienteController {
             cliente.setEstado(dto.getEstado());
             cliente.setDataNascimento(dto.getDataNascimento());
             cliente.setCreditoAprovado(dto.getCreditoAprovado() != null ? dto.getCreditoAprovado() : false);
+            cliente.setAutorizadoJantar(dto.getAutorizadoJantar() != null ? dto.getAutorizadoJantar() : true);
+            
+            // ⭐ ADICIONAR TIPO CLIENTE
+            cliente.setTipoCliente(dto.getTipoCliente() != null ? dto.getTipoCliente() : Cliente.TipoCliente.HOSPEDE);
             
             Cliente clienteAtualizado = clienteService.atualizar(id, cliente, dto.getEmpresaId());
             return ResponseEntity.ok(clienteAtualizado);
@@ -137,5 +137,21 @@ public class ClienteController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
         }
+    }
+
+    // ⭐ NOVOS ENDPOINTS PARA FUNCIONÁRIOS
+    @GetMapping("/funcionarios")
+    public ResponseEntity<List<Cliente>> listarFuncionarios() {
+        List<Cliente> funcionarios = clienteRepository.findByTipoCliente(Cliente.TipoCliente.FUNCIONARIO);
+        return ResponseEntity.ok(funcionarios);
+    }
+
+    @GetMapping("/funcionarios/buscar")
+    public ResponseEntity<List<Cliente>> buscarFuncionarios(@RequestParam String termo) {
+        List<Cliente> funcionarios = clienteRepository.buscarPorTipoETermo(
+            Cliente.TipoCliente.FUNCIONARIO, 
+            termo
+        );
+        return ResponseEntity.ok(funcionarios);
     }
 }

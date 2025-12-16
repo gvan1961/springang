@@ -7,6 +7,7 @@ public enum FormaPagamento {
     CARTAO_DEBITO,
     CARTAO_CREDITO,
     TRANSFERENCIA,
-    FATURADO
+    FATURADO   
+    
 
 }

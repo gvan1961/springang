@@ -36,7 +36,7 @@ public class PerfilService {
         
         if (dto.getPermissoesIds() != null && !dto.getPermissoesIds().isEmpty()) {
             List<Permissao> permissoes = permissaoRepository.findAllById(dto.getPermissoesIds());
-            perfil.setPermissoes(permissoes);
+          //  perfil.setPermissoes(permissoes);
         }
         
         return perfilRepository.save(perfil);

@@ -40,6 +40,13 @@ public interface ApartamentoRepository extends JpaRepository<Apartamento, Long> 
     	    @Param("checkout") LocalDateTime checkout
     	);
     
+    /**
+     * ✅ Listar apartamentos ordenados por número (crescente)
+     */
+    List<Apartamento> findAllByOrderByNumeroApartamentoAsc();
+    
+    
+    
     // Buscar apartamentos por múltiplos status
     @Query("SELECT a FROM Apartamento a WHERE a.status IN :statusList")
     List<Apartamento> findByStatusIn(@Param("statusList") List<Apartamento.StatusEnum> statusList);

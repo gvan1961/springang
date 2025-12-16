@@ -2,7 +2,7 @@ package com.divan.dto;
 
 import java.util.List;
 
-public class LancamentoRapidoRequest {
+public class LancamentoRapidoRequestDTO {
     
     private List<ComandaRapidaDTO> comandas;
     

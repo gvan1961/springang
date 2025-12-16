@@ -43,6 +43,12 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
     
     List<Reserva> findByClienteId(Long clienteId);
     
+    List<Reserva> findByClienteIdAndDataCheckinBetween(
+    	    Long clienteId, 
+    	    LocalDateTime inicioData, 
+    	    LocalDateTime fimData
+    	);
+    
     // ═══════════════════════════════════════════
     // BUSCAR POR STATUS
     // ═══════════════════════════════════════════
@@ -54,6 +60,11 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
     @Query("SELECT r FROM Reserva r WHERE r.status IN ('ATIVA', 'PRE_RESERVA') " +
            "ORDER BY r.dataCheckin DESC")
     List<Reserva> findReservasAtivasEPreReservas();
+    
+    /**
+     * ✅ Contar reservas por status
+     */
+    long countByStatus(Reserva.StatusReservaEnum status);
     
     // ═══════════════════════════════════════════
     // BUSCAR POR PERÍODO

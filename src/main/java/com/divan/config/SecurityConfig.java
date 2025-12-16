@@ -66,27 +66,42 @@ public class SecurityConfig {
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
             .authorizeHttpRequests(auth -> auth
-                // ENDPOINTS PÚBLICOS
+                // ========================================
+                // ENDPOINTS PÚBLICOS (ORDEM IMPORTANTE!)
+                // ========================================
+            		
+            	.requestMatchers(HttpMethod.GET, "/api/fechamento-caixa/*/relatorio").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/fechamento-caixa/*/imprimir").permitAll()
+                    		
+            		
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/public/**").permitAll()
+                .requestMatchers("/api/jantar/relatorio-impressao").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-
-                // LIBERAR RELATÓRIO E IMPRESSÃO
-                .requestMatchers(HttpMethod.GET, "/api/fechamento-caixa/*/relatorio").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/fechamento-caixa/*/imprimir").permitAll()
-
-                // FECHAMENTO DE CAIXA - AUTENTICADO
+                
+                // ✅ HOSPEDAGEM HÓSPEDES
+                .requestMatchers("/api/hospedagem-hospedes/**").permitAll()
+                
+                // ✅ CHECKOUT PARCIAL
+                .requestMatchers(HttpMethod.POST, "/api/reservas/*/checkout-parcial").permitAll()
+                
+                // ========================================
+                // ✅ CAIXA - REGRAS ESPECÍFICAS PRIMEIRO
+                // ========================================
+                                                
+                // Outros endpoints de caixa AUTENTICADOS (mais genérico)
                 .requestMatchers("/api/fechamento-caixa/**").authenticated()
 
-                // TODOS OS OUTROS ENDPOINTS - AUTENTICADO
+                // ========================================
+                // RESTO - AUTENTICADO
+                // ========================================
                 .requestMatchers("/api/**").authenticated()
-
                 .anyRequest().authenticated()
             );
-
         http.authenticationProvider(authenticationProvider());
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
-}
+   }
+

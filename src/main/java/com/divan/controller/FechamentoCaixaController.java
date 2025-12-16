@@ -225,6 +225,74 @@ public class FechamentoCaixaController {
     }
     
     /**
+     * 📊 GERAR RELATÓRIO (HTML PARA VISUALIZAÇÃO)
+     */
+    @GetMapping("/{id}/relatorio")
+    public ResponseEntity<?> gerarRelatorio(@PathVariable Long id) {
+        try {
+            System.out.println("═══════════════════════════════════════════");
+            System.out.println("📊 GERANDO RELATÓRIO HTML DO CAIXA #" + id);
+            System.out.println("═══════════════════════════════════════════");
+            
+            // Buscar o caixa
+            FechamentoCaixa caixa = fechamentoCaixaRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Caixa não encontrado"));
+            
+            System.out.println("✅ Caixa encontrado!");
+            
+            // Buscar todos os pagamentos do caixa
+            List<Pagamento> todosPagamentos = pagamentoRepository.findByCaixaId(caixa.getId());
+            
+            System.out.println("📊 Total de pagamentos: " + todosPagamentos.size());
+            
+            // Separar pagamentos de RESERVAS e AVULSOS
+            List<Pagamento> pagamentosReservas = todosPagamentos.stream()
+                .filter(p -> p.getReserva() != null)
+                .collect(Collectors.toList());
+            
+            List<Pagamento> pagamentosAvulsos = todosPagamentos.stream()
+                .filter(p -> p.getReserva() == null)
+                .collect(Collectors.toList());
+            
+            // Montar resposta
+            Map<String, Object> relatorio = new java.util.HashMap<>();
+            
+            // Informações básicas
+            relatorio.put("caixaId", caixa.getId());
+            relatorio.put("recepcionistaNome", caixa.getUsuario() != null ? caixa.getUsuario().getNome() : "N/A");
+            relatorio.put("dataHoraAbertura", caixa.getDataHoraAbertura());
+            relatorio.put("dataHoraFechamento", caixa.getDataHoraFechamento());
+            relatorio.put("status", caixa.getStatus() != null ? caixa.getStatus().name() : "ABERTO");
+            relatorio.put("turno", caixa.getTurno());
+            
+            // Calcular subtotal reservas
+            Map<String, BigDecimal> subtotalReservas = calcularTotaisPorFormaPagamento(pagamentosReservas);
+            relatorio.put("subtotalReservas", subtotalReservas);
+            
+            // Vendas por apartamento
+            relatorio.put("vendasReservas", agruparVendasPorApartamento(pagamentosReservas));
+            
+            // Vendas avulsas
+            Map<String, BigDecimal> vendasAvulsas = calcularTotaisPorFormaPagamento(pagamentosAvulsos);
+            relatorio.put("vendasAvulsas", vendasAvulsas);
+            
+            // Total geral
+            Map<String, BigDecimal> totalGeral = calcularTotaisPorFormaPagamento(todosPagamentos);
+            relatorio.put("totalGeral", totalGeral);
+            
+            System.out.println("✅ Relatório gerado com sucesso!");
+            System.out.println("═══════════════════════════════════════════");
+            
+            return ResponseEntity.ok(relatorio);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Erro ao gerar relatório: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(Map.of("erro", e.getMessage()));
+        }
+    }
+    
+    /**
      * 🔄 RECALCULAR TOTAIS DO CAIXA
      */
     private FechamentoCaixa recalcularTotaisCaixa(FechamentoCaixa caixa) {
