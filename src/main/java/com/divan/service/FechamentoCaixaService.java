@@ -1,9 +1,7 @@
 package com.divan.service;
 
 import com.divan.dto.FechamentoCaixaDTO;
-import com.divan.dto.FechamentoCaixaDetalheDTO;
 import com.divan.entity.FechamentoCaixa;
-import com.divan.entity.FechamentoCaixaDetalhe;
 import com.divan.entity.Pagamento;
 import com.divan.entity.Usuario;
 import com.divan.repository.FechamentoCaixaRepository;
@@ -13,13 +11,12 @@ import com.divan.repository.UsuarioRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.util.stream.Collectors;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import com.divan.dto.ProdutoVendidoDTO;
 import com.divan.dto.VendaDetalhadaDTO;
@@ -114,10 +111,9 @@ public class FechamentoCaixaService {
         System.out.println("   ID: " + caixaSalvo.getId());
         System.out.println("   Turno: " + caixaSalvo.getTurno());
         System.out.println("   Data/Hora: " + caixaSalvo.getDataHoraAbertura());
-        System.out.println("   Todos os totais: R$ 0,00");
         System.out.println("═══════════════════════════════════════════");
         
-        return converterParaDTOCompleto(caixaSalvo, new ArrayList<>());
+        return converterParaDTO(caixaSalvo);
     }
     
     /**
@@ -142,7 +138,6 @@ public class FechamentoCaixaService {
             System.out.println("✅ Caixa aberto encontrado!");
             System.out.println("   ID: " + caixa.getId());
             System.out.println("   Turno: " + caixa.getTurno());
-            System.out.println("   Aberto em: " + caixa.getDataHoraAbertura());
             System.out.println("═══════════════════════════════════════════");
             
             return converterParaDTO(caixa);
@@ -155,36 +150,39 @@ public class FechamentoCaixaService {
     }
     
     /**
-     * ✅ BUSCAR POR ID (COM RECÁLCULO DE TOTAIS E DETALHES)
+     * 🔒 FECHAR CAIXA
      */
     @Transactional
-    public FechamentoCaixaDTO buscarPorId(Long id) {
+    public FechamentoCaixaDTO fecharCaixa(Long caixaId, String observacoesFechamento) {
         System.out.println("═══════════════════════════════════════════");
-        System.out.println("📦 BUSCANDO CAIXA ID: " + id);
+        System.out.println("🔒 SERVICE - FECHANDO CAIXA");
+        System.out.println("   Caixa ID: " + caixaId);
         
-        FechamentoCaixa caixa = fechamentoCaixaRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Caixa não encontrado com ID: " + id));
+        FechamentoCaixa caixa = fechamentoCaixaRepository.findById(caixaId)
+            .orElseThrow(() -> new RuntimeException("Caixa não encontrado com ID: " + caixaId));
         
-        System.out.println("🔄 Recalculando totais do caixa #" + id);
+        if (caixa.getStatus() == FechamentoCaixa.StatusCaixaEnum.FECHADO) {
+            throw new RuntimeException("Caixa já está fechado!");
+        }
         
         recalcularTotais(caixa);
-        fechamentoCaixaRepository.save(caixa);
         
-        System.out.println("💰 Totais recalculados:");
-        System.out.println("   Diárias: R$ " + (caixa.getTotalDiarias() != null ? caixa.getTotalDiarias() : BigDecimal.ZERO));
-        System.out.println("   Produtos: R$ " + (caixa.getTotalProdutos() != null ? caixa.getTotalProdutos() : BigDecimal.ZERO));
-        System.out.println("   Total Bruto: R$ " + (caixa.getTotalBruto() != null ? caixa.getTotalBruto() : BigDecimal.ZERO));
-        System.out.println("   Total Líquido: R$ " + (caixa.getTotalLiquido() != null ? caixa.getTotalLiquido() : BigDecimal.ZERO));
+        caixa.setDataHoraFechamento(LocalDateTime.now());
+        caixa.setStatus(FechamentoCaixa.StatusCaixaEnum.FECHADO);
         
-        // ✅ CORRIGIDO: USA O ID PARA FILTRAR
-        List<FechamentoCaixaDetalhe> detalhes = fechamentoCaixaDetalheRepository
-            .findByFechamentoCaixaIdOrderByDataHoraDesc(caixa.getId());
+        if (observacoesFechamento != null && !observacoesFechamento.isEmpty()) {
+            String obsAtual = caixa.getObservacoes() != null ? caixa.getObservacoes() : "";
+            caixa.setObservacoes(obsAtual + "\n\nFECHAMENTO: " + observacoesFechamento);
+        }
         
-        System.out.println("✅ Caixa encontrado!");
-        System.out.println("   Total de detalhes: " + detalhes.size());
+        FechamentoCaixa caixaFechado = fechamentoCaixaRepository.save(caixa);
+        
+        System.out.println("✅ Caixa fechado com sucesso!");
+        System.out.println("   ID: " + caixaFechado.getId());
+        System.out.println("   Total Líquido: R$ " + caixaFechado.getTotalLiquido());
         System.out.println("═══════════════════════════════════════════");
         
-        return converterParaDTOCompleto(caixa, detalhes);
+        return converterParaDTO(caixaFechado);
     }
     
     /**
@@ -279,47 +277,6 @@ public class FechamentoCaixaService {
     }
     
     /**
-     * ✅ FECHAR CAIXA
-     */
-    @Transactional
-    public FechamentoCaixaDTO fecharCaixa(Long caixaId, String observacoesFechamento) {
-        System.out.println("═══════════════════════════════════════════");
-        System.out.println("🔒 SERVICE - FECHANDO CAIXA");
-        System.out.println("   Caixa ID: " + caixaId);
-        
-        FechamentoCaixa caixa = fechamentoCaixaRepository.findById(caixaId)
-            .orElseThrow(() -> new RuntimeException("Caixa não encontrado com ID: " + caixaId));
-        
-        if (caixa.getStatus() == FechamentoCaixa.StatusCaixaEnum.FECHADO) {
-            throw new RuntimeException("Caixa já está fechado!");
-        }
-        
-        recalcularTotais(caixa);
-        
-        caixa.setDataHoraFechamento(LocalDateTime.now());
-        caixa.setStatus(FechamentoCaixa.StatusCaixaEnum.FECHADO);
-        
-        if (observacoesFechamento != null && !observacoesFechamento.isEmpty()) {
-            String obsAtual = caixa.getObservacoes() != null ? caixa.getObservacoes() : "";
-            caixa.setObservacoes(obsAtual + "\n\nFECHAMENTO: " + observacoesFechamento);
-        }
-        
-        FechamentoCaixa caixaFechado = fechamentoCaixaRepository.save(caixa);
-        
-        System.out.println("✅ Caixa fechado com sucesso!");
-        System.out.println("   ID: " + caixaFechado.getId());
-        System.out.println("   Fechado em: " + caixaFechado.getDataHoraFechamento());
-        System.out.println("   Total Líquido: R$ " + caixaFechado.getTotalLiquido());
-        System.out.println("═══════════════════════════════════════════");
-        
-        // ✅ CORRIGIDO: USA O ID PARA FILTRAR
-        List<FechamentoCaixaDetalhe> detalhes = fechamentoCaixaDetalheRepository
-            .findByFechamentoCaixaIdOrderByDataHoraDesc(caixaFechado.getId());
-        
-        return converterParaDTOCompleto(caixaFechado, detalhes);
-    }
-    
-    /**
      * ✅ LISTAR TODOS
      */
     @Transactional(readOnly = true)
@@ -331,83 +288,66 @@ public class FechamentoCaixaService {
     }
     
     /**
-     * ✅ LISTAR POR PERÍODO
+     * ✅ LISTAR POR PERÍODO (COM FILTROS)
      */
     @Transactional(readOnly = true)
-    public List<FechamentoCaixaDTO> listarPorPeriodo(LocalDateTime dataInicio, LocalDateTime dataFim) {
-        List<FechamentoCaixa> caixas = fechamentoCaixaRepository
-            .findByDataHoraAberturaBetween(dataInicio, dataFim);
-        
+    public List<FechamentoCaixaDTO> listarPorPeriodo(
+        LocalDateTime dataInicio, 
+        LocalDateTime dataFim,
+        Long usuarioId,
+        String status
+    ) {
+        System.out.println("═══════════════════════════════════════════");
+        System.out.println("📅 SERVICE - LISTAR POR PERÍODO COM FILTROS");
+        System.out.println("   Período: " + dataInicio + " até " + dataFim);
+        System.out.println("   Usuário ID: " + (usuarioId != null ? usuarioId : "TODOS"));
+        System.out.println("   Status: " + (status != null ? status : "TODOS"));
+
+        List<FechamentoCaixa> caixas;
+
+        if (usuarioId != null && status != null && !status.isEmpty()) {
+            System.out.println("🔍 Filtrando por: Usuário + Status + Período");
+            caixas = fechamentoCaixaRepository.buscarPorUsuarioStatusEPeriodo(
+                usuarioId,
+                FechamentoCaixa.StatusCaixaEnum.valueOf(status),
+                dataInicio,
+                dataFim
+            );
+
+        } else if (usuarioId != null) {
+            System.out.println("🔍 Filtrando por: Usuário + Período");
+            caixas = fechamentoCaixaRepository.buscarPorUsuarioEPeriodo(
+                usuarioId,
+                dataInicio,
+                dataFim
+            );
+
+        } else if (status != null && !status.isEmpty()) {
+            System.out.println("🔍 Filtrando por: Status + Período");
+            caixas = fechamentoCaixaRepository.buscarPorStatusEPeriodo(
+                FechamentoCaixa.StatusCaixaEnum.valueOf(status),
+                dataInicio,
+                dataFim
+            );
+
+        } else {
+            System.out.println("🔍 Filtrando por: Período");
+            caixas = fechamentoCaixaRepository.findByDataHoraAberturaBetween(
+                dataInicio,
+                dataFim
+            );
+        }
+
+        System.out.println("✅ Encontrados: " + caixas.size() + " caixa(s)");
+        System.out.println("═══════════════════════════════════════════");
+
         return caixas.stream()
             .map(this::converterParaDTO)
             .collect(Collectors.toList());
     }
     
     /**
-     * 🔄 CONVERTER PARA DTO (BÁSICO)
-     */
-    private FechamentoCaixaDTO converterParaDTO(FechamentoCaixa caixa) {
-        FechamentoCaixaDTO dto = new FechamentoCaixaDTO();
-        dto.setId(caixa.getId());
-        
-        if (caixa.getUsuario() != null) {
-            dto.setUsuarioId(caixa.getUsuario().getId());
-            dto.setUsuarioNome(caixa.getUsuario().getNome());
-        }
-        
-        dto.setTurno(caixa.getTurno());
-        dto.setDataHoraAbertura(caixa.getDataHoraAbertura());
-        dto.setDataHoraFechamento(caixa.getDataHoraFechamento());
-        
-        if (caixa.getStatus() != null) {
-            dto.setStatus(caixa.getStatus().name());
-        }
-        
-        dto.setObservacoes(caixa.getObservacoes());
-        
-        return dto;
-    }
-    
-    /**
-     * 🔄 CONVERTER PARA DTO COMPLETO (COM TOTAIS E DETALHES)
-     */
-    private FechamentoCaixaDTO converterParaDTOCompleto(FechamentoCaixa caixa, List<FechamentoCaixaDetalhe> detalhes) {
-        FechamentoCaixaDTO dto = converterParaDTO(caixa);
-        
-        dto.setTotalDinheiro(caixa.getTotalDinheiro() != null ? caixa.getTotalDinheiro() : BigDecimal.ZERO);
-        dto.setTotalPix(caixa.getTotalPix() != null ? caixa.getTotalPix() : BigDecimal.ZERO);
-        dto.setTotalCartaoDebito(caixa.getTotalCartaoDebito() != null ? caixa.getTotalCartaoDebito() : BigDecimal.ZERO);
-        dto.setTotalCartaoCredito(caixa.getTotalCartaoCredito() != null ? caixa.getTotalCartaoCredito() : BigDecimal.ZERO);
-        dto.setTotalTransferencia(caixa.getTotalTransferencia() != null ? caixa.getTotalTransferencia() : BigDecimal.ZERO);
-        dto.setTotalFaturado(caixa.getTotalFaturado() != null ? caixa.getTotalFaturado() : BigDecimal.ZERO);
-        dto.setTotalDiarias(caixa.getTotalDiarias() != null ? caixa.getTotalDiarias() : BigDecimal.ZERO);
-        dto.setTotalProdutos(caixa.getTotalProdutos() != null ? caixa.getTotalProdutos() : BigDecimal.ZERO);
-        dto.setTotalBruto(caixa.getTotalBruto() != null ? caixa.getTotalBruto() : BigDecimal.ZERO);
-        dto.setTotalLiquido(caixa.getTotalLiquido() != null ? caixa.getTotalLiquido() : BigDecimal.ZERO);
-        dto.setTotalDescontos(caixa.getTotalDescontos() != null ? caixa.getTotalDescontos() : BigDecimal.ZERO);
-        dto.setTotalEstornos(caixa.getTotalEstornos() != null ? caixa.getTotalEstornos() : BigDecimal.ZERO);
-        
-        if (detalhes != null && !detalhes.isEmpty()) {
-            List<FechamentoCaixaDetalheDTO> detalhesDTO = detalhes.stream()
-                .map(this::converterDetalheParaDTO)
-                .collect(Collectors.toList());
-            dto.setDetalhes(detalhesDTO);
-        } else {
-            dto.setDetalhes(new ArrayList<>());
-        }
-        
-        dto.setResumoApartamentos(new ArrayList<>());
-        
-        return dto;
-    }
-    
-    /**
-     * ✅ BUSCAR VENDAS DETALHADAS DO CAIXA
-     * Mostra todos os produtos vendidos organizados por forma de pagamento
-     */
-    /**
-     * ✅ BUSCAR VENDAS DETALHADAS DO CAIXA
-     * Mostra todos os produtos vendidos organizados por forma de pagamento
+     * 🛒 BUSCAR VENDAS DETALHADAS DO CAIXA
      */
     @Transactional(readOnly = true)
     public RelatorioVendasCaixaDTO buscarVendasDetalhadas(Long caixaId) {
@@ -419,16 +359,10 @@ public class FechamentoCaixaService {
         
         RelatorioVendasCaixaDTO relatorio = new RelatorioVendasCaixaDTO(caixaId);
         
-        // 1. Buscar TODOS os pagamentos do caixa
         List<Pagamento> todosPagamentos = pagamentoRepository.findByCaixa(caixa);
         
         System.out.println("📊 Total de pagamentos no caixa: " + todosPagamentos.size());
         
-        // Mostrar os tipos encontrados
-        System.out.println("📋 Tipos de pagamento encontrados:");
-        todosPagamentos.forEach(p -> System.out.println("   - " + p.getTipo() + " = R$ " + p.getValor()));
-        
-        // 2. Filtrar apenas pagamentos de VENDAS (não hospedagem/diária)
         List<Pagamento> pagamentos = todosPagamentos.stream()
             .filter(p -> p.getTipo() != null && 
                         (p.getTipo().equalsIgnoreCase("PRODUTO") || 
@@ -439,139 +373,69 @@ public class FechamentoCaixaService {
         
         System.out.println("📊 Total de pagamentos de produtos/vendas: " + pagamentos.size());
         
-        // 3. Para cada pagamento, buscar a nota de venda e seus itens
         for (Pagamento pagamento : pagamentos) {
-            System.out.println("🔍 Processando pagamento #" + pagamento.getId() + 
-                              " - Tipo: " + pagamento.getTipo() + 
-                              " - Valor: R$ " + pagamento.getValor());
-            
-            // Verificar se o pagamento tem reserva associada
             if (pagamento.getReserva() != null) {
-                System.out.println("   → Tem reserva #" + pagamento.getReserva().getId());
-                
-                // Buscar notas de venda pela reserva
                 List<NotaVenda> notas = notaVendaRepository.findByReserva(pagamento.getReserva());
-                System.out.println("   → Notas encontradas: " + notas.size());
-                
                 for (NotaVenda nota : notas) {
-                    processarNotaVendaRelatorio(relatorio, nota, pagamento);
-                }
-            } else {
-                System.out.println("   → Venda à vista (sem reserva)");
-                
-                // Venda à vista - buscar pela descrição ou período
-                LocalDateTime inicioCaixa = caixa.getDataHoraAbertura();
-                LocalDateTime fimCaixa = caixa.getDataHoraFechamento() != null 
-                    ? caixa.getDataHoraFechamento() 
-                    : LocalDateTime.now();
-                
-                // Buscar todas as notas do período
-                List<NotaVenda> notasPeriodo = notaVendaRepository.findByDataHoraVendaBetween(
-                    inicioCaixa, 
-                    fimCaixa
-                );
-                
-                System.out.println("   → Notas no período: " + notasPeriodo.size());
-                
-                for (NotaVenda nota : notasPeriodo) {
-                    // Verificar se o valor bate (aproximadamente)
-                    if (nota.getTotal().compareTo(pagamento.getValor()) == 0) {
-                        System.out.println("   → Nota #" + nota.getId() + " corresponde ao valor!");
-                        processarNotaVendaRelatorio(relatorio, nota, pagamento);
-                        break;
-                    }
+                    processarNotaVenda(relatorio, nota, pagamento);
                 }
             }
         }
         
-        // 4. Calcular totais gerais
-        calcularTotaisGeraisRelatorio(relatorio);
+        calcularTotaisGerais(relatorio);
         
-        System.out.println("═══════════════════════════════════════════");
         System.out.println("✅ Relatório gerado com sucesso!");
         System.out.println("   Total de vendas: " + relatorio.getTotalVendas());
-        System.out.println("   Total de produtos: " + relatorio.getTotalProdutos());
         System.out.println("   Total geral: R$ " + relatorio.getTotalGeral());
         System.out.println("═══════════════════════════════════════════");
         
         return relatorio;
     }
+    
     /**
-     * 🔄 PROCESSAR NOTA DE VENDA E ADICIONAR AO RELATÓRIO
+     * 🔄 PROCESSAR NOTA DE VENDA
      */
-    private void processarNotaVendaRelatorio(RelatorioVendasCaixaDTO relatorio, NotaVenda nota, Pagamento pagamento) {
-        // Buscar itens da nota com os produtos
+    private void processarNotaVenda(RelatorioVendasCaixaDTO relatorio, NotaVenda nota, Pagamento pagamento) {
         List<ItemVenda> itens = itemVendaRepository.findByNotaVendaIdWithProduto(nota.getId());
         
         if (!itens.isEmpty()) {
-            VendaDetalhadaDTO vendaDTO = criarVendaDetalhadaDTO(nota, itens);
+            VendaDetalhadaDTO vendaDTO = new VendaDetalhadaDTO();
+            vendaDTO.setNotaVendaId(nota.getId());
+            vendaDTO.setDataHora(nota.getDataHoraVenda());
+            vendaDTO.setValorTotal(nota.getTotal());
+            vendaDTO.setTipoVenda(nota.getTipoVenda().toString());
+            
+            List<ProdutoVendidoDTO> produtosDTO = new ArrayList<>();
+            for (ItemVenda item : itens) {
+                ProdutoVendidoDTO produtoDTO = new ProdutoVendidoDTO();
+                produtoDTO.setProdutoId(item.getProduto().getId());
+                produtoDTO.setNomeProduto(item.getProduto().getNomeProduto());
+                produtoDTO.setQuantidade(item.getQuantidade());
+                produtoDTO.setValorUnitario(item.getValorUnitario());
+                produtoDTO.setTotalItem(item.getTotalItem());
+                produtosDTO.add(produtoDTO);
+            }
+            vendaDTO.setProdutos(produtosDTO);
+            
             String formaPagamento = pagamento.getFormaPagamento().toString();
+            relatorio.getVendasPorFormaPagamento().get(formaPagamento).add(vendaDTO);
             
-            // Adicionar ao mapa de vendas por forma de pagamento
-            relatorio.getVendasPorFormaPagamento()
-                .get(formaPagamento)
-                .add(vendaDTO);
+            BigDecimal totalAtual = relatorio.getTotaisPorFormaPagamento().get(formaPagamento);
+            relatorio.getTotaisPorFormaPagamento().put(formaPagamento, totalAtual.add(vendaDTO.getValorTotal()));
             
-            // Atualizar totais
-            atualizarTotaisRelatorio(relatorio, formaPagamento, vendaDTO);
+            Integer qtdVendas = relatorio.getQuantidadeVendasPorFormaPagamento().get(formaPagamento);
+            relatorio.getQuantidadeVendasPorFormaPagamento().put(formaPagamento, qtdVendas + 1);
+            
+            Integer qtdProdutos = relatorio.getQuantidadeProdutosPorFormaPagamento().get(formaPagamento);
+            int totalProdutosVenda = produtosDTO.stream().mapToInt(ProdutoVendidoDTO::getQuantidade).sum();
+            relatorio.getQuantidadeProdutosPorFormaPagamento().put(formaPagamento, qtdProdutos + totalProdutosVenda);
         }
     }
-
+    
     /**
-     * 🔄 CRIAR VENDA DETALHADA DTO A PARTIR DA NOTA E ITENS
+     * 🔄 CALCULAR TOTAIS GERAIS
      */
-    private VendaDetalhadaDTO criarVendaDetalhadaDTO(NotaVenda nota, List<ItemVenda> itens) {
-        VendaDetalhadaDTO vendaDTO = new VendaDetalhadaDTO();
-        vendaDTO.setNotaVendaId(nota.getId());
-        vendaDTO.setDataHora(nota.getDataHoraVenda());
-        vendaDTO.setValorTotal(nota.getTotal());
-        vendaDTO.setTipoVenda(nota.getTipoVenda().toString());
-        
-        List<ProdutoVendidoDTO> produtosDTO = new ArrayList<>();
-        
-        for (ItemVenda item : itens) {
-            ProdutoVendidoDTO produtoDTO = new ProdutoVendidoDTO();
-            produtoDTO.setProdutoId(item.getProduto().getId());
-            produtoDTO.setNomeProduto(item.getProduto().getNomeProduto());
-            produtoDTO.setQuantidade(item.getQuantidade());
-            produtoDTO.setValorUnitario(item.getValorUnitario());
-            produtoDTO.setTotalItem(item.getTotalItem());
-            
-            produtosDTO.add(produtoDTO);
-        }
-        
-        vendaDTO.setProdutos(produtosDTO);
-        
-        return vendaDTO;
-    }
-
-    /**
-     * 🔄 ATUALIZAR TOTAIS DO RELATÓRIO
-     */
-    private void atualizarTotaisRelatorio(RelatorioVendasCaixaDTO relatorio, String formaPagamento, VendaDetalhadaDTO venda) {
-        // Atualizar total por forma de pagamento
-        BigDecimal totalAtual = relatorio.getTotaisPorFormaPagamento().get(formaPagamento);
-        relatorio.getTotaisPorFormaPagamento().put(
-            formaPagamento, 
-            totalAtual.add(venda.getValorTotal())
-        );
-        
-        // Atualizar quantidade de vendas
-        Integer qtdVendas = relatorio.getQuantidadeVendasPorFormaPagamento().get(formaPagamento);
-        relatorio.getQuantidadeVendasPorFormaPagamento().put(formaPagamento, qtdVendas + 1);
-        
-        // Atualizar quantidade de produtos
-        Integer qtdProdutos = relatorio.getQuantidadeProdutosPorFormaPagamento().get(formaPagamento);
-        int totalProdutosVenda = venda.getProdutos().stream()
-            .mapToInt(ProdutoVendidoDTO::getQuantidade)
-            .sum();
-        relatorio.getQuantidadeProdutosPorFormaPagamento().put(formaPagamento, qtdProdutos + totalProdutosVenda);
-    }
-
-    /**
-     * 🔄 CALCULAR TOTAIS GERAIS DO RELATÓRIO
-     */
-    private void calcularTotaisGeraisRelatorio(RelatorioVendasCaixaDTO relatorio) {
+    private void calcularTotaisGerais(RelatorioVendasCaixaDTO relatorio) {
         BigDecimal totalGeral = BigDecimal.ZERO;
         int totalVendas = 0;
         int totalProdutos = 0;
@@ -593,19 +457,35 @@ public class FechamentoCaixaService {
         relatorio.setTotalProdutos(totalProdutos);
     }
     
-    
     /**
-     * 🔄 CONVERTER DETALHE PARA DTO
+     * 🔄 CONVERTER ENTIDADE PARA DTO
      */
-    private FechamentoCaixaDetalheDTO converterDetalheParaDTO(FechamentoCaixaDetalhe detalhe) {
-        FechamentoCaixaDetalheDTO dto = new FechamentoCaixaDetalheDTO();
-        dto.setId(detalhe.getId());
-        dto.setDataHora(detalhe.getDataHora());
-        dto.setTipo(detalhe.getTipo());
-        dto.setDescricao(detalhe.getDescricao());
-        dto.setApartamentoNumero(detalhe.getApartamentoNumero());
-        dto.setValor(detalhe.getValor() != null ? detalhe.getValor() : BigDecimal.ZERO);
-        dto.setFormaPagamento(detalhe.getFormaPagamento());
+    private FechamentoCaixaDTO converterParaDTO(FechamentoCaixa caixa) {
+        FechamentoCaixaDTO dto = new FechamentoCaixaDTO();
+        
+        dto.setId(caixa.getId());
+        dto.setUsuarioId(caixa.getUsuario() != null ? caixa.getUsuario().getId() : null);
+        dto.setUsuarioNome(caixa.getUsuario() != null ? caixa.getUsuario().getNome() : "N/A");
+        dto.setDataHoraAbertura(caixa.getDataHoraAbertura());
+        dto.setDataHoraFechamento(caixa.getDataHoraFechamento());
+        dto.setStatus(caixa.getStatus() != null ? caixa.getStatus().name() : "ABERTO");
+        dto.setTurno(caixa.getTurno());
+        
+        dto.setTotalDiarias(caixa.getTotalDiarias() != null ? caixa.getTotalDiarias() : BigDecimal.ZERO);
+        dto.setTotalProdutos(caixa.getTotalProdutos() != null ? caixa.getTotalProdutos() : BigDecimal.ZERO);
+        dto.setTotalDescontos(caixa.getTotalDescontos() != null ? caixa.getTotalDescontos() : BigDecimal.ZERO);
+        dto.setTotalEstornos(caixa.getTotalEstornos() != null ? caixa.getTotalEstornos() : BigDecimal.ZERO);
+        dto.setTotalBruto(caixa.getTotalBruto() != null ? caixa.getTotalBruto() : BigDecimal.ZERO);
+        dto.setTotalLiquido(caixa.getTotalLiquido() != null ? caixa.getTotalLiquido() : BigDecimal.ZERO);
+        
+        dto.setTotalDinheiro(caixa.getTotalDinheiro() != null ? caixa.getTotalDinheiro() : BigDecimal.ZERO);
+        dto.setTotalPix(caixa.getTotalPix() != null ? caixa.getTotalPix() : BigDecimal.ZERO);
+        dto.setTotalCartaoDebito(caixa.getTotalCartaoDebito() != null ? caixa.getTotalCartaoDebito() : BigDecimal.ZERO);
+        dto.setTotalCartaoCredito(caixa.getTotalCartaoCredito() != null ? caixa.getTotalCartaoCredito() : BigDecimal.ZERO);
+        dto.setTotalTransferencia(caixa.getTotalTransferencia() != null ? caixa.getTotalTransferencia() : BigDecimal.ZERO);
+        dto.setTotalFaturado(caixa.getTotalFaturado() != null ? caixa.getTotalFaturado() : BigDecimal.ZERO);
+        
+        dto.setObservacoes(caixa.getObservacoes());
         
         return dto;
     }

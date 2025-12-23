@@ -1,5 +1,7 @@
 package com.divan.controller;
 
+import java.time.temporal.ChronoUnit;
+import java.time.format.DateTimeFormatter;
 import com.divan.dto.ApartamentoRequestDTO;
 import com.divan.dto.ApartamentoResponseDTO;
 import com.divan.entity.Apartamento;
@@ -10,6 +12,10 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import com.divan.entity.Reserva;
+import com.divan.repository.ReservaRepository;
+import com.divan.repository.ApartamentoRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -23,6 +29,12 @@ public class ApartamentoController {
     
     @Autowired
     private ApartamentoService apartamentoService;
+    
+    @Autowired
+    private ApartamentoRepository apartamentoRepository;
+    
+    @Autowired
+    private ReservaRepository reservaRepository;
     
     // ✅ ATUALIZADO - Usar DTO
     @PostMapping
@@ -197,6 +209,76 @@ public class ApartamentoController {
             return ResponseEntity.ok(disponiveis);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("erro", e.getMessage()));
+        }
+    }
+    
+    @GetMapping("/{id}/verificar-checkout-vencido")
+    public ResponseEntity<?> verificarCheckoutVencido(@PathVariable Long id) {
+
+        System.out.println("🔍 Verificando checkout vencido - Apartamento ID: " + id);
+
+        try {
+            Apartamento apartamento = apartamentoRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Apartamento não encontrado"));
+
+            // Buscar reservas ATIVAS no apartamento
+            List<Reserva> reservasAtivas = reservaRepository.findByApartamentoAndStatus(
+                apartamento,
+                Reserva.StatusReservaEnum.ATIVA
+            );
+
+            if (reservasAtivas.isEmpty()) {
+                return ResponseEntity.ok(Map.of(
+                    "temCheckoutVencido", false,
+                    "disponivel", true
+                ));
+            }
+
+            // Verificar se alguma tem checkout vencido
+            LocalDateTime agora = LocalDateTime.now();
+
+            for (Reserva reserva : reservasAtivas) {
+                if (reserva.getDataCheckout().isBefore(agora)) {
+                    long horasAtraso = ChronoUnit.HOURS.between(reserva.getDataCheckout(), agora);
+
+                    System.out.println("⚠️ Checkout vencido detectado!");
+                    System.out.println("   Reserva ID: " + reserva.getId());
+                    System.out.println("   Hóspede: " + reserva.getCliente().getNome());
+                    System.out.println("   Atraso: " + horasAtraso + " hora(s)");
+
+                    return ResponseEntity.ok(Map.of(
+                        "temCheckoutVencido", true,
+                        "disponivel", false,
+                        "reservaId", reserva.getId(),
+                        "hospedeNome", reserva.getCliente().getNome(),
+                        "checkoutPrevisto", reserva.getDataCheckout().toString(),
+                        "horasAtraso", horasAtraso,
+                        "mensagem", String.format(
+                            "Apartamento %s está ocupado com checkout vencido há %d hora(s).\n\n" +
+                            "Hóspede: %s\n" +
+                            "Checkout previsto: %s\n\n" +
+                            "É necessário fazer o checkout antes de criar nova reserva.",
+                            apartamento.getNumeroApartamento(),
+                            horasAtraso,
+                            reserva.getCliente().getNome(),
+                            reserva.getDataCheckout().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
+                        )
+                    ));
+                }
+            }
+
+            // Tem reserva ativa mas não está vencida
+            return ResponseEntity.ok(Map.of(
+                "temCheckoutVencido", false,
+                "disponivel", false,
+                "mensagem", "Apartamento ocupado com checkout dentro do prazo"
+            ));
+
+        } catch (Exception e) {
+            System.err.println("❌ Erro ao verificar checkout: " + e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of(
+                "erro", e.getMessage()
+            ));
         }
     }
 

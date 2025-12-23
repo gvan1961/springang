@@ -48,6 +48,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -1496,5 +1497,31 @@ public class ReservaController {
                 return ResponseEntity.badRequest().body(Map.of("erro", e.getMessage()));
             }
         }
-}
+        
+        /**
+         * 🚪 REALIZAR CHECK-OUT
+         */
+        @PostMapping("/{id}/checkout")
+        @PreAuthorize("isAuthenticated()")
+        public ResponseEntity<?> realizarCheckOut(@PathVariable Long id) {
+            try {
+                System.out.println("🚪 Requisição de checkout para reserva #" + id);
+                
+                Reserva reserva = reservaService.realizarCheckOut(id);
+                
+                return ResponseEntity.ok(Map.of(
+                    "sucesso", true,
+                    "mensagem", "Check-out realizado com sucesso!",
+                    "reserva", reserva
+                ));
+                
+            } catch (Exception e) {
+                System.err.println("❌ Erro no checkout: " + e.getMessage());
+                return ResponseEntity.badRequest().body(Map.of(
+                    "sucesso", false,
+                    "erro", e.getMessage()
+                ));
+            }
+        
+        }}
 

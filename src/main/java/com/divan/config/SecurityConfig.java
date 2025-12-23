@@ -72,9 +72,11 @@ public class SecurityConfig {
             		
             	.requestMatchers(HttpMethod.GET, "/api/fechamento-caixa/*/relatorio").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/fechamento-caixa/*/imprimir").permitAll()
+                .requestMatchers("/api/fechamento-caixa/**").authenticated()
                     		
             		
                 .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/api/test/**").permitAll()
                 .requestMatchers("/api/public/**").permitAll()
                 .requestMatchers("/api/jantar/relatorio-impressao").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
@@ -91,7 +93,8 @@ public class SecurityConfig {
                                                 
                 // Outros endpoints de caixa AUTENTICADOS (mais genérico)
                 .requestMatchers("/api/fechamento-caixa/**").authenticated()
-
+     
+                .requestMatchers("/api/alertas/**").authenticated()
                 // ========================================
                 // RESTO - AUTENTICADO
                 // ========================================

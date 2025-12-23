@@ -8,6 +8,12 @@ import com.divan.entity.FechamentoCaixaDetalhe;
 import com.divan.entity.Pagamento;
 import com.divan.entity.Reserva;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
+
 import com.divan.repository.FechamentoCaixaRepository;
 import com.divan.repository.FechamentoCaixaDetalheRepository;
 import com.divan.repository.PagamentoRepository;
@@ -15,11 +21,11 @@ import com.divan.service.FechamentoCaixaService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+
 import org.springframework.web.bind.annotation.*;
 import com.divan.dto.RelatorioVendasCaixaDTO;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeParseException;
+
 
 import java.util.List;
 import java.util.Map;
@@ -445,44 +451,51 @@ public class FechamentoCaixaController {
             return ResponseEntity.badRequest().body(Map.of("erro", e.getMessage()));
         }
     }
-    
+        
     /**
-     * 📋 LISTAR CAIXAS POR PERÍODO
-     */
+     * 📅 LISTAR CAIXAS POR PERÍODO (COM FILTROS OPCIONAIS)
+     */     
     @GetMapping("/periodo")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<FechamentoCaixaDTO>> listarPorPeriodo(
         @RequestParam String dataInicio,
-        @RequestParam String dataFim
+        @RequestParam String dataFim,
+        @RequestParam(required = false) Long usuarioId,
+        @RequestParam(required = false) String status
     ) {
         System.out.println("═══════════════════════════════════════════");
-        System.out.println("📅 CONTROLLER - LISTAR CAIXAS POR PERÍODO");
-        System.out.println("   Data Início (String): " + dataInicio);
-        System.out.println("   Data Fim (String): " + dataFim);
-        
+        System.out.println("🎯 CONTROLLER - ENDPOINT /periodo CHAMADO!");
+        System.out.println("   Data Início: " + dataInicio);
+        System.out.println("   Data Fim: " + dataFim);
+        System.out.println("   Usuário ID: " + (usuarioId != null ? usuarioId : "TODOS"));
+        System.out.println("   Status: " + (status != null ? status : "TODOS"));
+        System.out.println("═══════════════════════════════════════════");
+
         try {
-            // ✅ CONVERTER STRING PARA LocalDateTime
             LocalDateTime dataInicioConvertida = LocalDateTime.parse(dataInicio);
             LocalDateTime dataFimConvertida = LocalDateTime.parse(dataFim);
-            
-            System.out.println("   Data Início (convertida): " + dataInicioConvertida);
-            System.out.println("   Data Fim (convertida): " + dataFimConvertida);
-            System.out.println("═══════════════════════════════════════════");
-            
-            // ✅ CHAMAR O SERVICE COM LocalDateTime
+
             List<FechamentoCaixaDTO> caixas = fechamentoCaixaService.listarPorPeriodo(
-                dataInicioConvertida, 
-                dataFimConvertida
+                dataInicioConvertida,
+                dataFimConvertida,
+                usuarioId,
+                status
             );
-            
-            System.out.println("✅ Total de caixas encontrados: " + caixas.size());
-            
+
+            System.out.println("✅ Total retornado: " + caixas.size());
+
             return ResponseEntity.ok(caixas);
-            
+
         } catch (DateTimeParseException e) {
             System.err.println("❌ Erro ao converter datas: " + e.getMessage());
             return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            System.err.println("❌ Erro geral: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
+        
     
     /**
      * 📊 GERAR RELATÓRIO DETALHADO

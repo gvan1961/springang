@@ -23,6 +23,9 @@ public class HospedagemHospede {
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "reservas"})  // ← ADICIONE
     private Cliente cliente;
     
+    @Column(name = "nome_completo", length = 200)
+    private String nomeCompleto;
+    
     @Column(name = "data_entrada", nullable = false)
     private LocalDateTime dataEntrada;
     
@@ -63,6 +66,15 @@ public class HospedagemHospede {
     
     public StatusHospedeIndividual getStatus() { return status; }
     public void setStatus(StatusHospedeIndividual status) { this.status = status; }
+    
+    
+    
+	public String getNomeCompleto() {
+		return nomeCompleto;
+	}
+	public void setNomeCompleto(String nomeCompleto) {
+		this.nomeCompleto = nomeCompleto;
+	}
 	@Override
 	public int hashCode() {
 		return Objects.hash(id);

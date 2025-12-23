@@ -190,4 +190,38 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
         @Param("inicio") LocalDateTime inicio,
         @Param("fim") LocalDateTime fim
     );
+    
+ // ═══════════════════════════════════════════
+ // ✅ MÉTODOS PARA DETECÇÃO DE CONFLITOS
+ // ═══════════════════════════════════════════
+
+ /**
+  * ✅ Buscar reservas por status e data de checkin entre um período
+  * Usado para encontrar pré-reservas de um dia específico
+  */
+ List<Reserva> findByStatusAndDataCheckinBetween(
+     Reserva.StatusReservaEnum status, 
+     LocalDateTime inicio, 
+     LocalDateTime fim
+ );
+
+ /**
+  * ✅ Buscar reservas por apartamento e status
+  * Usado para verificar se apartamento tem reserva ativa
+  */
+ List<Reserva> findByApartamentoIdAndStatus(
+     Long apartamentoId, 
+     Reserva.StatusReservaEnum status
+ );
+
+ /**
+  * ✅ Buscar reservas por apartamento e data de checkin entre um período
+  * Usado para verificar disponibilidade de apartamento em uma data
+  */
+ List<Reserva> findByApartamentoIdAndDataCheckinBetween(
+     Long apartamentoId,
+     LocalDateTime inicio,
+     LocalDateTime fim
+ );
+    
 }
